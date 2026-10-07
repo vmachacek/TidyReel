@@ -5,7 +5,8 @@ environment:
   sdk: '>=3.12.0 <4.0.0'
 
 workspace:
-  - apps/local_media_hub
+  - apps/pocket_cinema
   - packages/media_domain
+  - packages/media_parser
   - packages/media_platform_storage
   - packages/media_playback

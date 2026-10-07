@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-10-07
-- Decision owners: TidyReel maintainers
+- Decision owners: Pocket Cinema maintainers
 
 ## Context
 

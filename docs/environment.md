@@ -26,7 +26,7 @@ Direct Gradle commands need the verified JDK rather than the host's stale
 
 ```powershell
 $env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot'
-Push-Location apps/local_media_hub/android
+Push-Location apps/pocket_cinema/android
 .\gradlew.bat testDebugUnitTest
 Pop-Location
 ```
@@ -34,12 +34,12 @@ Pop-Location
 Build and inspect the effective packaged manifest:
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat build apk --debug
 Pop-Location
 
 $aapt = 'C:\Users\vmach\AppData\Local\Android\Sdk\build-tools\36.0.0\aapt.exe'
-$apk = 'apps\local_media_hub\build\app\outputs\flutter-apk\app-debug.apk'
+$apk = 'apps\pocket_cinema\build\app\outputs\flutter-apk\app-debug.apk'
 & $aapt dump permissions $apk
 & $aapt dump xmltree $apk AndroidManifest.xml
 ```

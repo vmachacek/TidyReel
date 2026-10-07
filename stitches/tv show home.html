@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pocket Cinema - SpongeBob SquarePants</title>
+<!-- Google Fonts & Material Symbols -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Sora:wght@400;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#10131b",
+            "secondary-fixed-dim": "#ffb86b",
+            "surface-container": "#1c1f28",
+            "on-background": "#e0e2ed",
+            "on-tertiary-fixed": "#001e2c",
+            "on-secondary-fixed": "#2c1700",
+            "surface-container-high": "#272a32",
+            "on-secondary-container": "#583300",
+            "secondary": "#ffb86b",
+            "surface-container-highest": "#32353d",
+            "error": "#ffb4ab",
+            "on-tertiary-fixed-variant": "#004c69",
+            "on-secondary-fixed-variant": "#683d00",
+            "primary-fixed-dim": "#ffb4a3",
+            "primary-container": "#ff5a36",
+            "inverse-surface": "#e0e2ed",
+            "on-error-container": "#ffdad6",
+            "surface-bright": "#363942",
+            "on-tertiary-container": "#002f42",
+            "tertiary-fixed": "#c4e7ff",
+            "error-container": "#93000a",
+            "on-surface": "#e0e2ed",
+            "on-error": "#690005",
+            "on-secondary": "#492900",
+            "on-tertiary": "#00354a",
+            "surface-container-low": "#181b24",
+            "secondary-container": "#ed9000",
+            "surface-variant": "#32353d",
+            "primary-fixed": "#ffdad2",
+            "on-primary-fixed-variant": "#8c1900",
+            "on-surface-variant": "#e3beb6",
+            "outline": "#aa8982",
+            "secondary-fixed": "#ffdcbc",
+            "on-primary-container": "#5a0c00",
+            "primary": "#ffb4a3",
+            "outline-variant": "#5b403a",
+            "surface-container-lowest": "#0b0e16",
+            "tertiary-container": "#009dd3",
+            "surface-tint": "#ffb4a3",
+            "inverse-on-surface": "#2d3039",
+            "on-primary": "#630f00",
+            "on-primary-fixed": "#3d0600",
+            "inverse-primary": "#b52603",
+            "tertiary-fixed-dim": "#7bd0ff",
+            "background": "#10131b",
+            "tertiary": "#7bd0ff",
+            "surface-dim": "#10131b"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-lg": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin-tablet": "2rem",
+            "space-md": "1rem",
+            "space-xl": "2.5rem",
+            "gutter-tablet": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter": "1rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "body-sm": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "headline-lg-mobile": ["Sora"],
+            "body-md": ["Plus Jakarta Sans"],
+            "label-ui": ["Plus Jakarta Sans"],
+            "headline-lg": ["Sora"],
+            "headline-sm": ["Sora"],
+            "label-code-sm": ["JetBrains Mono"],
+            "display-hero-mobile": ["Sora"],
+            "headline-md": ["Sora"],
+            "label-code-lg": ["JetBrains Mono"],
+            "display-hero": ["Sora"]
+          },
+          "fontSize": {
+            "body-sm": ["12px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-ui": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "label-code-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "display-hero-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-code-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "display-hero": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.03em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen selection:bg-primary-container selection:text-white pb-20">
+<!-- TopAppBar Component (from Shared JSON anchors) -->
+<header class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-space-md h-14 w-full bg-surface-container-lowest/80 backdrop-blur-xl dark:bg-surface-container-lowest/80 border-b border-outline-variant/30 shadow-2xl">
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary dark:text-primary" data-icon="movie">movie</span>
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-bold tracking-tight text-primary dark:text-primary">Pocket Cinema</span>
+</div>
+<!-- Desktop Nav Cluster -->
+<nav class="hidden md:flex items-center gap-1 ml-6">
+<a class="px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-primary hover:bg-surface-container-high/40 transition-colors font-label-ui text-label-ui active:scale-95 duration-150" href="#">Home</a>
+<a class="px-3 py-1.5 rounded-lg text-primary dark:text-primary font-semibold bg-primary-container/15 border border-primary/20 font-label-ui text-label-ui active:scale-95 duration-150" href="#">Library</a>
+<a class="px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-primary hover:bg-surface-container-high/40 transition-colors font-label-ui text-label-ui active:scale-95 duration-150" href="#">Activity</a>
+<a class="px-3 py-1.5 rounded-lg text-on-surface-variant dark:text-on-surface-variant hover:text-primary hover:bg-surface-container-high/40 transition-colors font-label-ui text-label-ui active:scale-95 duration-150" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-3">
+<!-- Media Server Direct Connect Badge -->
+<div class="hidden sm:flex items-center gap-2 px-2.5 py-1 rounded-full bg-surface-container border border-white/5 font-label-code-sm text-label-code-sm text-tertiary">
+<span class="w-2 h-2 rounded-full bg-tertiary animate-pulse"></span>
+        DIRECT PLAY · LOCAL NVME
+      </div>
+<button aria-label="Search" class="w-9 h-9 rounded-full flex items-center justify-center text-on-surface-variant hover:text-primary hover:bg-surface-container-high/40 transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+</div>
+</header>
+<!-- Main Showcase Container -->
+<main class="pt-14 w-full">
+<!-- Hero Banner with Cinematic Backdrop -->
+<section class="relative w-full h-[580px] lg:h-[620px] overflow-hidden flex items-end">
+<!-- Background Image with Scrims -->
+<div class="absolute inset-0 z-0">
+<img class="w-full h-full object-cover object-top opacity-50 filter brightness-90 saturate-110" data-alt="Cinematic widescreen underwater landscape of Bikini Bottom bathed in atmospheric moody oceanic blue and turquoise twilight. Distant tropical flora, bioluminescent undersea structures, and iconic nautical contours glow softly under volumetric water light rays. The visual language blends high-end screening room fidelity with obsidian shadows and ambient orange warmth, matching executive theater aesthetics." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsOLVEfso4WxTLnMyR9KOD0AKz0d4zoIAh1NsnQjYnMTCw_xixsrbzPq2BPN7J9GZu0srICdnU0uys6XSNxAduJOk7CzEfKMCTWRtov8H9yrUicp65EOrUdv7l1eSq7UQHC3sP_WEne-W-XsYVGOpw2Pd_m8tbXhimValxdIaEUI2obLefa0MNiT3ZRrLwHNchXe0fu-2q27v9zw0M3MiQ44SxjcXrkfhmJbAafNJ_"/>
+<!-- Multi-layer OLED Scrims -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-surface via-surface/80 to-transparent w-full lg:w-3/4"></div>
+<div class="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-surface-container-lowest/80 to-transparent"></div>
+</div>
+<!-- Backdrop Content -->
+<div class="relative z-10 max-w-7xl mx-auto px-6 lg:px-12 pb-10 w-full">
+<!-- Breadcrumb & Status Tag -->
+<div class="flex items-center gap-2 mb-4">
+<a class="font-label-ui text-label-ui text-on-surface-variant hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="arrow_back">arrow_back</span> Series Library
+          </a>
+<span class="text-outline-variant font-body-sm text-body-sm">•</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high/80 border border-white/10 font-label-code-sm text-label-code-sm text-secondary">ARCHIVAL MASTER</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-high/80 border border-white/10 font-label-code-sm text-label-code-sm text-tertiary">1080p REMUX</span>
+</div>
+<div class="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+<!-- Left Column: Title, Metadata & Overview -->
+<div class="max-w-3xl">
+<h1 class="font-display-hero text-display-hero text-on-surface font-extrabold tracking-tight drop-shadow-md">
+              SpongeBob SquarePants
+            </h1>
+<!-- Meta Strip -->
+<div class="flex flex-wrap items-center gap-y-2 gap-x-4 mt-3 text-on-surface-variant">
+<span class="font-headline-sm text-headline-sm text-secondary font-bold">1999</span>
+<span class="text-outline-variant">•</span>
+<span class="font-label-ui text-label-ui text-on-surface">Animation, Comedy, Kids</span>
+<span class="text-outline-variant">•</span>
+<span class="px-1.5 py-0.5 rounded border border-outline-variant/60 font-label-code-sm text-label-code-sm text-on-surface-variant">TV-Y7</span>
+<span class="text-outline-variant">•</span>
+<span class="flex items-center gap-1 font-label-code-sm text-label-code-sm text-secondary">
+<span class="material-symbols-outlined text-sm text-secondary" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span> 8.2/10
+              </span>
+</div>
+<!-- Synopsis -->
+<p class="mt-4 font-body-md text-body-md text-on-surface-variant/90 line-clamp-3 max-w-2xl leading-relaxed">
+              Deep beneath the tropical ocean in the subterranean township of Bikini Bottom, an incurable optimist named SpongeBob SquarePants navigates chaotic culinary duties at the Krusty Krab, jellyfish expeditions with Patrick Star, and relentless misadventures across the sea floor.
+            </p>
+<!-- Metrics Bar -->
+<div class="mt-6 flex items-center gap-3 p-3 rounded-xl bg-surface-container-low/80 backdrop-blur-md border border-white/5 max-w-xl">
+<span class="material-symbols-outlined text-primary-fixed-dim" data-icon="dns">dns</span>
+<div class="flex-1">
+<div class="flex justify-between items-center font-label-code-sm text-label-code-sm">
+<span class="text-on-surface">11 Seasons · 241 Episodes Available Locally</span>
+<span class="text-primary font-bold">78% Watched</span>
+</div>
+<div class="w-full bg-surface-container-highest h-1.5 rounded-full mt-2 overflow-hidden">
+<div class="bg-gradient-to-r from-primary-container to-secondary h-full rounded-full" style="width: 78%;"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Primary Transport Actions -->
+<div class="flex flex-col sm:flex-row lg:flex-col gap-3 min-w-[280px]">
+<!-- Resume S05E01 Pill Action -->
+<button class="group relative flex flex-col p-4 rounded-xl bg-primary-container text-white shadow-xl shadow-primary-container/20 hover:brightness-110 active:scale-95 transition-all text-left overflow-hidden">
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+<div>
+<span class="font-headline-sm text-headline-sm font-bold block leading-tight">Resume S05E01</span>
+<span class="font-label-code-sm text-label-code-sm text-white/80">Friend or Foe · 14m remaining</span>
+</div>
+</div>
+</div>
+<!-- Progress indicator on the resume pill -->
+<div class="w-full bg-black/30 h-1.5 rounded-full overflow-hidden mt-1">
+<div class="bg-white h-full rounded-full" style="width: 36%;"></div>
+</div>
+</button>
+<div class="flex items-center gap-2">
+<!-- Play Next Unwatched -->
+<button class="flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-surface-container-high border border-white/10 hover:border-primary/40 font-label-ui text-label-ui text-on-surface hover:text-primary transition-colors active:scale-95">
+<span class="material-symbols-outlined text-lg" data-icon="skip_next">skip_next</span>
+<span>Next Unwatched</span>
+</button>
+<!-- Add to Watchlist -->
+<button class="p-3 rounded-xl bg-surface-container-high border border-white/10 hover:border-primary/40 text-on-surface hover:text-primary transition-colors active:scale-95" title="Add to Watchlist">
+<span class="material-symbols-outlined text-lg" data-icon="bookmark_border">bookmark_border</span>
+</button>
+<!-- Fix Match / Edit -->
+<button class="p-3 rounded-xl bg-surface-container-high border border-white/10 hover:border-primary/40 text-on-surface hover:text-primary transition-colors active:scale-95" title="Fix Match / Metadata Editor">
+<span class="material-symbols-outlined text-lg" data-icon="auto_fix_high">auto_fix_high</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Content Area: Season Navigation & Episode Grid -->
+<div class="max-w-7xl mx-auto px-6 lg:px-12 mt-8">
+<!-- Season Selection Shelf -->
+<section class="border-b border-outline-variant/30 pb-6">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-3">
+<h2 class="font-headline-lg text-headline-lg font-bold text-on-surface">Seasons</h2>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-high border border-white/5 font-label-code-sm text-label-code-sm text-on-surface-variant">20 Episodes</span>
+</div>
+<!-- View / Filter Utility -->
+<div class="flex items-center gap-2">
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container border border-white/5 font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-base" data-icon="filter_list">filter_list</span>
+<span>Unwatched First</span>
+</button>
+<button class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container border border-white/5 font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface transition-colors">
+<span class="material-symbols-outlined text-base" data-icon="sort">sort</span>
+<span>Episode Order</span>
+</button>
+</div>
+</div>
+<!-- Season Pills Scroller -->
+<div class="flex items-center gap-3 overflow-x-auto pb-2 scrollbar-none">
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 1</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 2</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 3</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 4</button>
+<!-- Active Season Pill (Season 5) -->
+<button class="px-5 py-2.5 rounded-full bg-primary-container text-white font-bold border border-primary-container shadow-lg shadow-primary-container/25 whitespace-nowrap active:scale-95 flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-white"></span>
+            Season 5
+          </button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 6</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Season 7</button>
+<button class="px-5 py-2.5 rounded-full bg-surface-container-low border border-white/5 text-on-surface-variant hover:text-primary hover:bg-surface-container transition-all font-label-ui text-label-ui whitespace-nowrap active:scale-95">Specials</button>
+</div>
+</section>
+<!-- Episode Card Grid -->
+<section class="mt-8 mb-16">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+<!-- Episode 1 Card (In-Progress) -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="A vibrant 16:9 frame showing SpongeBob and Mr. Krabs in the undersea Krusty Krab kitchen, framed by deep turquoise marine tones and cinematic shadows. The scene reflects high saturation underwater animation with clean modern remux fidelity, crisp contours, and subtle ambient volumetric light typical of archival animation transfers." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDC4u_HswgXwyABT011kzzQRazyviXrsRKgV1l_WoxIqKqBjvy89efv7ga-ZowsBhZNoCEBlthv9lkM9HrskKWoDkfu2U2X_I0MC_Z89ydxgis0FbMsSb_s4MAzmF6COGQM2IrCHhc5E_t9QZO6jxxTOdoeOXe-ppkhrnZ2SkR6PJAWQOr3VvQH6mMvp_L0tqj76ApDzRHDjfmh6Um2RTZ86ids299SiCeu4_pQzM6T"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<!-- Hover Play Overlay -->
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Top Spec Badge -->
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-secondary">S05E01</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">22m</span>
+</div>
+<!-- Progress Bar -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-primary-container h-full" style="width: 36%;"></div>
+</div>
+</div>
+<!-- Details -->
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  Friend or Foe
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  Mr. Krabs and Plankton reveal the historical origin story behind the secret Krabby Patty formula and how their bitter rivalry began in childhood.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-primary font-medium">In Progress (8m / 22m)</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark as Watched">
+<span class="material-symbols-outlined text-base" data-icon="check_circle_outline">check_circle_outline</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Episode 2 Card (Fully Watched) -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl opacity-90 hover:opacity-100">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="A 16:9 animated frame depicting the iconic Krusty Krab fry station with Jim the gold-standard chef and an awestruck SpongeBob. The marine restaurant background is accented with warm brass grills and deep ocean blues, preserved in sharp high-definition master quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD521-iLsSWRk24bJS8CFUYifZPOfHyJ2sZWarHPtxtNvmvIaBlmh7ya0M2OT_2kpqkMaMmXSkeU3WWJblAxJ2p6I2oSAb6H2I_PNp___HwykV_WjSfQJncLHXJMTXylACnVBilwiA9odWmuyUz4UNXGMhnc5rGuWHuWW_6yMjjb4Lx9-CkRx78zMQibj7sbkJpFACKu6XZGt9I1KTCHVTd_rr55sAtSUR-3cg0jZLQ"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-surface-bright text-on-surface flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="replay">replay</span>
+</div>
+</div>
+<!-- Top Spec Badge -->
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-secondary">S05E02</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">22m</span>
+</div>
+<!-- Watched Tick Badge -->
+<div class="absolute top-2.5 right-2.5 px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-tertiary flex items-center gap-1">
+<span class="material-symbols-outlined text-xs" data-icon="check" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check</span> Watched
+              </div>
+<!-- Progress Bar (100%) -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-tertiary h-full" style="width: 100%;"></div>
+</div>
+</div>
+<!-- Details -->
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  The Original Fry Cook / Night Light
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  Jim, the original legendary Krusty Krab chef, returns for an afternoon, making SpongeBob self-conscious about his grill talent.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-tertiary font-medium">Completed · 22m</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark Unwatched">
+<span class="material-symbols-outlined text-base" data-icon="visibility_off">visibility_off</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Episode 3 Card (Unwatched) -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="An expressive 16:9 shot showing SpongeBob and Patrick examining mysterious undersea wakeboarding gear in a deep sea kelp forest. Rich emerald weeds and deep blue aquatic depth contrast against vivid yellow and pink character palettes, styled in clean digital animation remaster quality." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBWYzqm6uRL0o68OexRzLO0drOQOIwIMvTqJxLCoGLJBCXYJuNtBdaEncWitMdpXbpGNj1R0OJZMUnWghgQcZUGudRPzHBb_JU_jA8L8_PQy1cD1vJklBxdnsoogLWU08sWwRwhszUlqQ5p1LrMmyd0LE6Hp70156AspBmpS7ehnkohOIc26Skoj3Rmfl8fB1xJbyyCpc5JPitbxecsmB704-3EPve5BKdalhNV2mOs"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Top Spec Badge -->
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-secondary">S05E03</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">22m</span>
+</div>
+<!-- Unwatched status -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-primary-container h-full" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Details -->
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  Rise and Shine / Waiting / Fungus Among Us
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  Patrick undertakes his morning wake-up routine; SpongeBob waits by the mailbox for a cereal boxtop toy; a prickly sea fungus invades.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">Unwatched · Direct Stream</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark as Watched">
+<span class="material-symbols-outlined text-base" data-icon="check_circle_outline">check_circle_outline</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Episode 4 Card (Special Combined File) -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="An expansive panoramic undersea arena scene from Bikini Bottom with cheering nautical crowds and an animated roller coaster in the background. High contrast theatrical lighting with deep indigo floor gradients and warm amber amusement park accents." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDIjUiajjYwERc_PSghQJF5huz1OzLj8eKX6_49QyvNoGM9f4QYTBxbQ90L82mCfTHnecDueHQFoRiiwjWF-Hap_swiG9xzxYcf_XU6VdnzlXE-go5Zs73kveJbNRlB0f9nqEyQ6wiBpGXkilo2oEzv1CIpIxaAaNvRk65a6swPHcsuLVpScqBLAfgd2XxRmVEKRBJQ9bISnl2_0iWbglp_BKFX_2FrSW88D4fG3b_P"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<!-- Top Spec Badge: Combined File -->
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-secondary/40 font-label-code-sm text-label-code-sm text-secondary font-bold">S05E07-E08</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">Combined File</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">44m</span>
+</div>
+<!-- Unwatched track -->
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-primary-container h-full" style="width: 0%;"></div>
+</div>
+</div>
+<!-- Details -->
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  Atlantis SquarePantis (Double Episode)
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  The gang discovers the lost half of an ancient amulet, boarding a magical flying bus to the ancient submerged continent of Atlantis.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-secondary font-medium">Archival Special Remux · 44m</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark as Watched">
+<span class="material-symbols-outlined text-base" data-icon="check_circle_outline">check_circle_outline</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Episode 5 Card -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="A dramatic low-angle cartoon frame of the Chum Bucket restaurant with giant robotic elements silhouetted against glowing neon greens and oceanic obsidian blues. The visual reflects high-production animation remaster with clean linear depth." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDWAXuX9Bxpn5OPvnvOVCusgPiI3J6FUW7HHuMXavyCHnBOsWuXv7iaFa4mU0iSUVqUrR10FOIgVI8JA5NJhy8M-NiEpa-95mgQusmqgpBdo8ZQSyA4lRgWYExR42nTCvSvHEImCYrRgFAXpU0X5Hyfb-cXYpM-SSIUsQKt74Tk9t7gBPgahllJb6o94e4WkNkU_5_kilZlf9v5luR_JET9_13EE4CsHYMmcaqZ3JqT"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-secondary">S05E09</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">22m</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-primary-container h-full" style="width: 0%;"></div>
+</div>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  Picture Day / Pat No Pay / Blackjack
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  SpongeBob strives to stay pristine before school photos; Patrick works off a bill; SpongeBob fears his hulking cousin Blackjack.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">Unwatched · FLAC 5.1</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark as Watched">
+<span class="material-symbols-outlined text-base" data-icon="check_circle_outline">check_circle_outline</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Episode 6 Card -->
+<div class="group bg-surface-container-low border border-white/5 rounded-xl overflow-hidden hover:border-primary/40 transition-all duration-200 flex flex-col shadow-lg hover:shadow-2xl">
+<!-- Thumbnail 16:9 -->
+<div class="relative aspect-video w-full overflow-hidden bg-surface-container-lowest">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-alt="An atmospheric animated shot of Squidward Tentacles practicing clarinet inside his Moai stone house at night, lit by a single warm desk lamp against indigo ocean shadows. The frame exhibits theatrical dark tones and rich texture rendering." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA8lwetf5jhDeDQXwhgn6i05X8XVIyYnjs0pr9G9BTsOrpLYmghg0HnKJXU2yC-QCDheza_-6cTtV1Lp-rqnlE2jn5VHhQhpc2VxwdfNi12L6wism4Y3jmNaG2FlS_2YMQ7de5TMZGBTTpqA6S-BvQ2pXhNgRs7Y_NBGTF9sL4D1eJoS1ROe5xuiY_bmj_Z4-mewu-VXMPfwnBEwbe3eOhUVQEEUs2FgpXhkYKmmSw5"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-transparent to-transparent opacity-80"></div>
+<div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+<div class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" data-weight="fill" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</div>
+</div>
+<div class="absolute top-2.5 left-2.5 flex items-center gap-1.5">
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-secondary">S05E10</span>
+<span class="px-2 py-0.5 rounded bg-surface-container-lowest/80 backdrop-blur-md border border-white/10 font-label-code-sm text-label-code-sm text-on-surface-variant">22m</span>
+</div>
+<div class="absolute bottom-0 left-0 right-0 h-1 bg-surface-container-highest">
+<div class="bg-primary-container h-full" style="width: 0%;"></div>
+</div>
+</div>
+<div class="p-4 flex-1 flex flex-col justify-between">
+<div>
+<h3 class="font-headline-sm text-headline-sm text-on-surface group-hover:text-primary transition-colors font-semibold">
+                  Blackened Sponge / Mermaid Man vs. SpongeBob
+                </h3>
+<p class="mt-1 font-body-sm text-body-sm text-on-surface-variant line-clamp-2">
+                  SpongeBob invents an epic confrontation to explain a mundane black eye; Plankton brainwashes veteran undersea heroes to endorse chum burgers.
+                </p>
+</div>
+<div class="mt-4 pt-3 border-t border-white/5 flex items-center justify-between text-on-surface-variant font-label-code-sm text-label-code-sm">
+<span class="text-on-surface-variant">Unwatched · Direct Stream</span>
+<button class="p-1 hover:text-on-surface transition-colors" title="Mark as Watched">
+<span class="material-symbols-outlined text-base" data-icon="check_circle_outline">check_circle_outline</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Technical Stream & Media Inspection Bento Box -->
+<section class="mb-16 p-6 rounded-2xl bg-surface-container-low border border-white/5">
+<div class="flex items-center justify-between mb-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="storage">storage</span>
+<h3 class="font-headline-sm text-headline-sm font-semibold text-on-surface">Storage &amp; Local Media Inspector</h3>
+</div>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">Path: /mnt/media/series/SpongeBob SquarePants/</span>
+</div>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<div class="p-4 rounded-xl bg-surface-container border border-white/5">
+<span class="block font-label-code-sm text-label-code-sm text-on-surface-variant">LOCAL FOOTPRINT</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface mt-1 block">142.6 GB</span>
+<span class="font-label-code-sm text-label-code-sm text-secondary">All 11 Seasons Cached</span>
+</div>
+<div class="p-4 rounded-xl bg-surface-container border border-white/5">
+<span class="block font-label-code-sm text-label-code-sm text-on-surface-variant">PRIMARY ENCODING</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface mt-1 block">H.264 AVC</span>
+<span class="font-label-code-sm text-label-code-sm text-tertiary">Direct Play Compatible</span>
+</div>
+<div class="p-4 rounded-xl bg-surface-container border border-white/5">
+<span class="block font-label-code-sm text-label-code-sm text-on-surface-variant">AUDIO STREAMS</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface mt-1 block">AC3 5.1 / FLAC</span>
+<span class="font-label-code-sm text-label-code-sm text-on-surface-variant">English, Spanish, German</span>
+</div>
+<div class="p-4 rounded-xl bg-surface-container border border-white/5">
+<span class="block font-label-code-sm text-label-code-sm text-on-surface-variant">METADATA SYNC</span>
+<span class="font-headline-md text-headline-md font-bold text-on-surface mt-1 block">Matched 100%</span>
+<span class="font-label-code-sm text-label-code-sm text-secondary">TVDb ID: 75543</span>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Mobile BottomNavBar Shell (from Shared JSON anchors - responsive pivot: visible on mobile, hidden on desktop) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 w-full z-50 flex justify-around items-center px-space-sm py-2 pb-safe bg-surface-container-lowest/90 backdrop-blur-2xl dark:bg-surface-container-lowest/90 border-t border-outline-variant/20 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
+<!-- Home -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 transition-colors hover:text-primary active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="home">home</span>
+<span class="font-label-ui text-label-ui mt-0.5">Home</span>
+</a>
+<!-- Library (Active destination for Series page) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary font-bold px-3 py-1.5 rounded-full bg-primary-container/20 border border-primary/30 active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="video_library" data-weight="fill" style="font-variation-settings: 'FILL' 1;">video_library</span>
+<span class="font-label-ui text-label-ui mt-0.5">Library</span>
+</a>
+<!-- Activity -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 transition-colors hover:text-primary active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="sync_saved_locally">sync_saved_locally</span>
+<span class="font-label-ui text-label-ui mt-0.5">Activity</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 transition-colors hover:text-primary active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-2xl" data-icon="tune">tune</span>
+<span class="font-label-ui text-label-ui mt-0.5">Settings</span>
+</a>
+</nav>
+</body></html>

@@ -2,12 +2,12 @@
 
 - Date: 2026-10-07
 - Status: Approved design direction
-- Product: Local Media Hub
-- Governing requirements: `LOCAL_MEDIA_HUB_BUILD_SPEC (1).md`, especially sections 3, 4, 7, 14, 15, 19, 21, 25, and 31
+- Product: Pocket Cinema
+- Governing requirements: `POCKET_CINEMA_BUILD_SPEC.md`, especially sections 3, 4, 7, 14, 15, 19, 21, 25, and 31
 
 ## Agreed outcome
 
-Build the first vertical slice of Local Media Hub as production-shaped Flutter code rather than a disposable demo. The slice proves that the target Android tablet can grant persistent read-only access to a user-selected directory, enumerate its files, play representative local MP4 and MKV media without copying whole videos, attach a sibling SRT subtitle, and probe useful technical metadata.
+Build the first vertical slice of Pocket Cinema as production-shaped Flutter code rather than a disposable demo. The slice proves that the target Android tablet can grant persistent read-only access to a user-selected directory, enumerate its files, play representative local MP4 and MKV media without copying whole videos, attach a sibling SRT subtitle, and probe useful technical metadata.
 
 This milestone exists to retire platform risk before catalog, database, metadata-provider, matching, or polished-library UI work begins. Its success is empirical: important storage and playback claims must be demonstrated on the connected Samsung SM-T500, not inferred from package documentation or emulator behavior.
 
@@ -46,7 +46,7 @@ The spike will not introduce Drift, Riverpod code generation, TMDB, LLM integrat
 ```text
 analysis_options.yaml
 pubspec.yaml
-apps/local_media_hub/
+apps/pocket_cinema/
   android/
   integration_test/
   lib/

@@ -1,5 +1,5 @@
 name: media_playback
-description: Platform-neutral playback contracts for TidyReel.
+description: Platform-neutral playback contracts for Pocket Cinema.
 version: 1.0.0
 publish_to: none
 resolution: workspace

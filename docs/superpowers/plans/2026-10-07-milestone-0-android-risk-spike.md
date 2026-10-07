@@ -43,16 +43,16 @@
 .gitignore                                      ignored SDK/build/editor files
 analysis_options.yaml                           repository-wide lint policy
 pubspec.yaml                                    Dart workspace membership
-apps/local_media_hub/                           generated Android Flutter app
+apps/pocket_cinema/                           generated Android Flutter app
   pigeons/storage_api.dart                      typed Android command contract
-  lib/app/local_media_hub_app.dart              Material/localization root
+  lib/app/pocket_cinema_app.dart              Material/localization root
   lib/features/risk_spike/                      state, controller, and UI
   lib/infrastructure/android/                   Pigeon/EventChannel gateway
   lib/infrastructure/playback/                  media_kit adapter
   lib/l10n/app_en.arb                           user-facing strings
-  android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/
+  android/app/src/main/kotlin/com/pocketcinema/app/platform/
                                                 SAF, scan, lease, and probe code
-  android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/
+  android/app/src/test/kotlin/com/pocketcinema/app/platform/
                                                 pure Kotlin adapter tests
   test/                                         controller, widget, adapter tests
   integration_test/                             fake-backed app flow test
@@ -73,7 +73,7 @@ docs/manual-tests/milestone-0-android.md        real-device evidence
 - Create: `.gitignore`
 - Create: `analysis_options.yaml`
 - Create: `pubspec.yaml`
-- Create: `apps/local_media_hub/**` with `flutter create`
+- Create: `apps/pocket_cinema/**` with `flutter create`
 - Create: `packages/media_domain/pubspec.yaml`
 - Create: `packages/media_domain/lib/media_domain.dart`
 - Create: `packages/media_domain/lib/src/app_failure.dart`
@@ -82,7 +82,7 @@ docs/manual-tests/milestone-0-android.md        real-device evidence
 - Create: `packages/media_domain/test/app_result_test.dart`
 - Create: `docs/environment.md`
 - Create: `docs/implementation_status.md`
-- Add unchanged: `LOCAL_MEDIA_HUB_BUILD_SPEC (1).md`
+- Add unchanged: `POCKET_CINEMA_BUILD_SPEC.md`
 
 **Interfaces:**
 - Produces: `AppFailure`, `AppResult<T>`, `Success<T>`, `FailureResult<T>`, `CancellationToken`, and `CancellationController`.
@@ -123,13 +123,13 @@ Expected: Flutter reports 3.47.3 stable, Android tooling is usable, and `SM-T500
 ```powershell
 $flutter = 'C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat'
 $dart = 'C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat'
-& $flutter create --platforms=android --org com.tidyreel --project-name local_media_hub apps/local_media_hub
+& $flutter create --platforms=android --org com.pocketcinema --project-name pocket_cinema apps/pocket_cinema
 & $dart create --force -t package packages/media_domain
 & $dart create --force -t package packages/media_platform_storage
 & $dart create --force -t package packages/media_playback
 ```
 
-Delete the generated counter test and sample library files with `apply_patch`. Keep Android scaffolding. Set the app label to `Local Media Hub` and Android `minSdk` to 29.
+Delete the generated counter test and sample library files with `apply_patch`. Keep Android scaffolding. Set the app label to `Pocket Cinema` and Android `minSdk` to 29.
 
 Replace generated counter behavior with a compile-only shell that Task 8 will replace:
 
@@ -140,7 +140,7 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
     const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Local Media Hub setup'))),
+      home: Scaffold(body: Center(child: Text('Pocket Cinema setup'))),
     ),
   );
 }
@@ -158,7 +158,7 @@ environment:
   sdk: '>=3.12.0 <4.0.0'
 
 workspace:
-  - apps/local_media_hub
+  - apps/pocket_cinema
   - packages/media_domain
   - packages/media_platform_storage
   - packages/media_playback
@@ -180,7 +180,7 @@ dependencies:
   media_domain: ^1.0.0
   media_platform_storage: ^1.0.0
 
-# apps/local_media_hub/pubspec.yaml
+# apps/pocket_cinema/pubspec.yaml
 resolution: workspace
 dependencies:
   flutter:
@@ -202,7 +202,7 @@ Pop-Location
 Push-Location packages/media_playback
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat pub add flutter_lints --dev
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub get
 Pop-Location
 ```
@@ -322,7 +322,7 @@ Push-Location packages/media_domain
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat test test/app_result_test.dart
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat format .
 Pop-Location
-git add .gitignore analysis_options.yaml pubspec.yaml apps/local_media_hub packages docs/environment.md docs/implementation_status.md "LOCAL_MEDIA_HUB_BUILD_SPEC (1).md"
+git add .gitignore analysis_options.yaml pubspec.yaml apps/pocket_cinema packages docs/environment.md docs/implementation_status.md POCKET_CINEMA_BUILD_SPEC.md
 git commit -m "build: scaffold Flutter workspace and domain foundation"
 ```
 
@@ -516,15 +516,15 @@ Expected: all classifier, nullable metadata, and sidecar tests pass.
 ### Task 3: Generate the typed Android bridge and map failures safely
 
 **Files:**
-- Create: `apps/local_media_hub/pigeons/storage_api.dart`
-- Modify: `apps/local_media_hub/pubspec.yaml`
-- Create: `apps/local_media_hub/lib/infrastructure/android/storage_platform_api.dart`
-- Create: `apps/local_media_hub/lib/infrastructure/android/pigeon_storage_platform_api.dart`
-- Create: `apps/local_media_hub/lib/infrastructure/android/android_storage_gateway.dart`
-- Generate: `apps/local_media_hub/lib/infrastructure/android/generated/storage_api.g.dart`
-- Generate: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageApi.g.kt`
-- Create: `apps/local_media_hub/test/infrastructure/android/android_storage_gateway_test.dart`
-- Create: `apps/local_media_hub/test/support/fake_storage_platform_api.dart`
+- Create: `apps/pocket_cinema/pigeons/storage_api.dart`
+- Modify: `apps/pocket_cinema/pubspec.yaml`
+- Create: `apps/pocket_cinema/lib/infrastructure/android/storage_platform_api.dart`
+- Create: `apps/pocket_cinema/lib/infrastructure/android/pigeon_storage_platform_api.dart`
+- Create: `apps/pocket_cinema/lib/infrastructure/android/android_storage_gateway.dart`
+- Generate: `apps/pocket_cinema/lib/infrastructure/android/generated/storage_api.g.dart`
+- Generate: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageApi.g.kt`
+- Create: `apps/pocket_cinema/test/infrastructure/android/android_storage_gateway_test.dart`
+- Create: `apps/pocket_cinema/test/support/fake_storage_platform_api.dart`
 - Create: `tool/generate.ps1`
 - Create: `docs/dependencies.md`
 
@@ -537,7 +537,7 @@ Expected: all classifier, nullable metadata, and sidecar tests pass.
 Add a Pigeon entry to `docs/dependencies.md`: purpose is typed Flutter/Kotlin messages; maintainer is the Flutter team in `flutter/packages`; license is BSD-3-Clause; runtime impact is generated code with no network behavior; removal path is replacing generated interfaces while preserving `StoragePlatformApi`.
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub add pigeon --dev
 Pop-Location
 ```
@@ -598,7 +598,7 @@ In the same test support file, define `FakeStoragePlatformApi implements Storage
 - [ ] **Step 3: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/android_storage_gateway_test.dart
 Pop-Location
 ```
@@ -705,12 +705,12 @@ abstract class StorageHostApi {
 }
 ```
 
-Run Pigeon with Dart output in `lib/infrastructure/android/generated/` and Kotlin package `com.tidyreel.local_media_hub.platform`. Configure the exact command under `tool/generate.ps1` and make it exit nonzero on failure.
+Run Pigeon with Dart output in `lib/infrastructure/android/generated/` and Kotlin package `com.pocketcinema.app.platform`. Configure the exact command under `tool/generate.ps1` and make it exit nonzero on failure.
 
 ```powershell
 $ErrorActionPreference = 'Stop'
 $workspace = Split-Path -Parent $PSScriptRoot
-$app = Join-Path $workspace 'apps\local_media_hub'
+$app = Join-Path $workspace 'apps\pocket_cinema'
 $dart = 'C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat'
 if (-not (Test-Path -LiteralPath $dart)) {
   throw "Pinned Dart executable not found at $dart"
@@ -720,8 +720,8 @@ try {
   & $dart run pigeon `
     --input pigeons/storage_api.dart `
     --dart_out lib/infrastructure/android/generated/storage_api.g.dart `
-    --kotlin_out android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageApi.g.kt `
-    --kotlin_package com.tidyreel.local_media_hub.platform
+    --kotlin_out android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageApi.g.kt `
+    --kotlin_package com.pocketcinema.app.platform
   if ($LASTEXITCODE -ne 0) { throw "Pigeon failed with exit code $LASTEXITCODE" }
 } finally {
   Pop-Location
@@ -760,30 +760,30 @@ AppFailure mapPlatformFailure(PlatformException exception) {
 }
 ```
 
-Use EventChannel name `com.tidyreel.local_media_hub/storage_scan_events`. Cancel the native scan when the cancellation token completes. Never copy `PlatformException.message` or `details` into `safeDetail`.
+Use EventChannel name `com.pocketcinema.app/storage_scan_events`. Cancel the native scan when the cancellation token completes. Never copy `PlatformException.message` or `details` into `safeDetail`.
 
 - [ ] **Step 6: Verify GREEN, generation stability, and commit**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/android_storage_gateway_test.dart
 Pop-Location
 powershell -ExecutionPolicy Bypass -File tool/generate.ps1
-git diff --exit-code -- apps/local_media_hub/lib/infrastructure/android/generated apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageApi.g.kt
-git add apps/local_media_hub tool/generate.ps1 pubspec.lock docs/dependencies.md
+git diff --exit-code -- apps/pocket_cinema/lib/infrastructure/android/generated apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageApi.g.kt
+git add apps/pocket_cinema tool/generate.ps1 pubspec.lock docs/dependencies.md
 git commit -m "feat: add typed Android storage bridge"
 ```
 
 ### Task 4: Implement persisted SAF directory authorization and restoration
 
 **Files:**
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/MainActivity.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/PersistableFlagPolicy.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/RootAccessEvaluator.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/AndroidRootPermissionStore.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/PersistableFlagPolicyTest.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/RootAccessEvaluatorTest.kt`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/MainActivity.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/PersistableFlagPolicy.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/RootAccessEvaluator.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/AndroidRootPermissionStore.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/PersistableFlagPolicyTest.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/RootAccessEvaluatorTest.kt`
 
 **Interfaces:**
 - Consumes: generated `StorageHostApi` and messages from Task 3.
@@ -821,8 +821,8 @@ fun `persisted grant with unavailable provider is unavailable`() {
 - [ ] **Step 2: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.*"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.*"
 Pop-Location
 ```
 
@@ -854,8 +854,8 @@ Implement `releasePermission(treeUri)` with `contentResolver.releasePersistableU
 - [ ] **Step 4: Verify GREEN**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.*"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.*"
 Pop-Location
 ```
 
@@ -864,24 +864,24 @@ Expected: all permission flag and root access policy tests pass. Picker and rest
 - [ ] **Step 5: Commit**
 
 ```powershell
-git add apps/local_media_hub/android
+git add apps/pocket_cinema/android
 git commit -m "feat: persist Android SAF directory grants"
 ```
 
 ### Task 5: Stream recursive enumeration with bounded batches and cancellation
 
 **Files:**
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/DocumentNode.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/DocumentQueryGateway.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/AndroidDocumentQueryGateway.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/DocumentTreeEnumerator.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/ScanSessionRegistry.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageScanEventHandler.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/SmallFileReader.kt`
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/DocumentTreeEnumeratorTest.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/SmallFileReaderTest.kt`
-- Create: `apps/local_media_hub/test/infrastructure/android/scan_event_mapper_test.dart`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/DocumentNode.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/DocumentQueryGateway.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/AndroidDocumentQueryGateway.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/DocumentTreeEnumerator.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/ScanSessionRegistry.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageScanEventHandler.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/SmallFileReader.kt`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/DocumentTreeEnumeratorTest.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/SmallFileReaderTest.kt`
+- Create: `apps/pocket_cinema/test/infrastructure/android/scan_event_mapper_test.dart`
 
 **Interfaces:**
 - Consumes: `startScan`, `cancelScan`, EventChannel schema, and Task 2 scan-event classes.
@@ -980,10 +980,10 @@ Reuse the strict `FakeStoragePlatformApi` and literal `root` fixture from Task 3
 - [ ] **Step 3: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.DocumentTreeEnumeratorTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.DocumentTreeEnumeratorTest"
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/scan_event_mapper_test.dart
 Pop-Location
 ```
@@ -1026,26 +1026,26 @@ The Kotlin test file defines `FakeDocumentQueryGateway`, `RecordingScanSink`, `T
 - [ ] **Step 5: Verify GREEN and commit**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.DocumentTreeEnumeratorTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.DocumentTreeEnumeratorTest"
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/scan_event_mapper_test.dart
 Pop-Location
-git add apps/local_media_hub
+git add apps/pocket_cinema
 git commit -m "feat: stream cancellable SAF enumeration"
 ```
 
 ### Task 6: Probe SAF media with Android media APIs
 
 **Files:**
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/ProbeBackend.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/AndroidProbeBackend.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/MediaProbeService.kt`
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
-- Create: `apps/local_media_hub/lib/infrastructure/android/android_media_probe.dart`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/MediaProbeServiceTest.kt`
-- Create: `apps/local_media_hub/test/infrastructure/android/android_media_probe_test.dart`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/ProbeBackend.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/AndroidProbeBackend.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/MediaProbeService.kt`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
+- Create: `apps/pocket_cinema/lib/infrastructure/android/android_media_probe.dart`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/MediaProbeServiceTest.kt`
+- Create: `apps/pocket_cinema/test/infrastructure/android/android_media_probe_test.dart`
 
 **Interfaces:**
 - Consumes: `StorageHostApi.probeFile` and Task 2 `MediaProbe`.
@@ -1129,10 +1129,10 @@ test('unsupported probe format is distinct from retryable IO failure', () async 
 - [ ] **Step 3: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.MediaProbeServiceTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.MediaProbeServiceTest"
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/android_media_probe_test.dart
 Pop-Location
 ```
@@ -1176,13 +1176,13 @@ class MediaProbeService(private val backendFactory: () -> ProbeBackend) {
 - [ ] **Step 5: Verify GREEN and commit**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.MediaProbeServiceTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.MediaProbeServiceTest"
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/android/android_media_probe_test.dart
 Pop-Location
-git add apps/local_media_hub
+git add apps/pocket_cinema
 git commit -m "feat: probe SAF media through Android APIs"
 ```
 
@@ -1193,13 +1193,13 @@ git commit -m "feat: probe SAF media through Android APIs"
 - Create: `packages/media_playback/lib/src/playback_models.dart`
 - Create: `packages/media_playback/lib/src/playback_engine.dart`
 - Create: `packages/media_playback/lib/src/playback_engine_factory.dart`
-- Create: `apps/local_media_hub/lib/infrastructure/playback/media_kit_playback_engine.dart`
-- Create: `apps/local_media_hub/lib/infrastructure/playback/media_kit_playback_engine_factory.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/playback_session_coordinator.dart`
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/PlaybackLeaseRegistry.kt`
-- Create: `apps/local_media_hub/test/features/risk_spike/playback_session_coordinator_test.dart`
-- Create: `apps/local_media_hub/test/infrastructure/playback/media_kit_failure_mapper_test.dart`
+- Create: `apps/pocket_cinema/lib/infrastructure/playback/media_kit_playback_engine.dart`
+- Create: `apps/pocket_cinema/lib/infrastructure/playback/media_kit_playback_engine_factory.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/playback_session_coordinator.dart`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/PlaybackLeaseRegistry.kt`
+- Create: `apps/pocket_cinema/test/features/risk_spike/playback_session_coordinator_test.dart`
+- Create: `apps/pocket_cinema/test/infrastructure/playback/media_kit_failure_mapper_test.dart`
 - Modify: `docs/dependencies.md`
 
 **Interfaces:**
@@ -1211,7 +1211,7 @@ git commit -m "feat: probe SAF media through Android APIs"
 Before the command, add entries to `docs/dependencies.md`: `media_kit` supplies the player API, `media_kit_video` supplies Flutter video output, and `media_kit_libs_video` supplies native libmpv binaries. Record MIT licensing, Android/desktop platform coverage, binary-size/native implications, local file access, no provider credentials, current repository activity, and the replacement boundary at `PlaybackEngine`.
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub add media_kit media_kit_video media_kit_libs_video
 Pop-Location
 ```
@@ -1272,7 +1272,7 @@ test('malformed subtitle reports warning without stopping playback', () async {
 - [ ] **Step 3: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/features/risk_spike/playback_session_coordinator_test.dart
 Pop-Location
 ```
@@ -1335,34 +1335,34 @@ Future<void> stop() async {
 - [ ] **Step 6: Verify GREEN and commit**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/features/risk_spike/playback_session_coordinator_test.dart
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/infrastructure/playback/media_kit_failure_mapper_test.dart
 Pop-Location
-git add packages/media_playback apps/local_media_hub pubspec.lock docs/environment.md docs/dependencies.md
+git add packages/media_playback apps/pocket_cinema pubspec.lock docs/environment.md docs/dependencies.md
 git commit -m "feat: add direct SAF playback adapter and lifecycle"
 ```
 
 ### Task 8: Build the localized diagnostic controller and tablet UI
 
 **Files:**
-- Modify: `apps/local_media_hub/lib/main.dart`
-- Create: `apps/local_media_hub/lib/app/local_media_hub_app.dart`
-- Create: `apps/local_media_hub/lib/app/app_theme.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/risk_spike_state.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/risk_spike_controller.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/risk_spike_screen.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/root_panel.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/scan_panel.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/media_list.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/probe_panel.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/player_panel.dart`
-- Create: `apps/local_media_hub/lib/features/risk_spike/widgets/failure_panel.dart`
-- Create: `apps/local_media_hub/l10n.yaml`
-- Create: `apps/local_media_hub/lib/l10n/app_en.arb`
-- Create: `apps/local_media_hub/test/features/risk_spike/risk_spike_controller_test.dart`
-- Create: `apps/local_media_hub/test/features/risk_spike/risk_spike_screen_test.dart`
-- Create: `apps/local_media_hub/integration_test/risk_spike_fake_flow_test.dart`
+- Modify: `apps/pocket_cinema/lib/main.dart`
+- Create: `apps/pocket_cinema/lib/app/pocket_cinema_app.dart`
+- Create: `apps/pocket_cinema/lib/app/app_theme.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/risk_spike_state.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/risk_spike_controller.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/risk_spike_screen.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/root_panel.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/scan_panel.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/media_list.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/probe_panel.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/player_panel.dart`
+- Create: `apps/pocket_cinema/lib/features/risk_spike/widgets/failure_panel.dart`
+- Create: `apps/pocket_cinema/l10n.yaml`
+- Create: `apps/pocket_cinema/lib/l10n/app_en.arb`
+- Create: `apps/pocket_cinema/test/features/risk_spike/risk_spike_controller_test.dart`
+- Create: `apps/pocket_cinema/test/features/risk_spike/risk_spike_screen_test.dart`
+- Create: `apps/pocket_cinema/integration_test/risk_spike_fake_flow_test.dart`
 
 **Interfaces:**
 - Consumes: `LibraryStorageGateway`, `MediaProbe`, `PlaybackSessionCoordinator`, classifier, and sidecar matcher.
@@ -1371,7 +1371,7 @@ git commit -m "feat: add direct SAF playback adapter and lifecycle"
 - [ ] **Step 1: Add Flutter localization support**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub add flutter_localizations --sdk=flutter
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub add intl:any
 Pop-Location
@@ -1463,7 +1463,7 @@ The widget test file defines `testApp`, `permissionRevokedState`, and `filesAvai
 - [ ] **Step 4: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/features/risk_spike
 Pop-Location
 ```
@@ -1576,12 +1576,12 @@ testWidgets('fake library scans probes plays seeks and releases', (tester) async
 - [ ] **Step 8: Verify GREEN and commit**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat gen-l10n
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test/features/risk_spike
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test integration_test/risk_spike_fake_flow_test.dart -d R9TR30ABDQJ
 Pop-Location
-git add apps/local_media_hub pubspec.lock
+git add apps/pocket_cinema pubspec.lock
 git commit -m "feat: add Milestone 0 diagnostic workflow"
 ```
 
@@ -1601,11 +1601,11 @@ git commit -m "feat: add Milestone 0 diagnostic workflow"
 - [ ] **Step 1: Build, install, and launch a clean debug app**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat build apk --debug
 Pop-Location
-C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ install -r apps\local_media_hub\build\app\outputs\flutter-apk\app-debug.apk
-C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell monkey -p com.tidyreel.local_media_hub 1
+C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ install -r apps\pocket_cinema\build\app\outputs\flutter-apk\app-debug.apk
+C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell monkey -p com.pocketcinema.app 1
 ```
 
 - [ ] **Step 2: Execute and record the direct-source checklist**
@@ -1630,8 +1630,8 @@ Capture filtered logs during each playback session:
 
 ```powershell
 C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ logcat -c
-C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell dumpsys meminfo com.tidyreel.local_media_hub
-C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell dumpsys package com.tidyreel.local_media_hub
+C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell dumpsys meminfo com.pocketcinema.app
+C:\Users\vmach\AppData\Local\Android\Sdk\platform-tools\adb.exe -s R9TR30ABDQJ shell dumpsys package com.pocketcinema.app
 ```
 
 Inspect logs locally for descriptor/resource errors; do not commit raw logs containing filenames or URIs.
@@ -1666,11 +1666,11 @@ git commit -m "docs: record direct SAF playback validation"
 **Execution condition:** Run this task only when Task 9 records a direct content-URI source failure rather than a codec failure.
 
 **Files:**
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/ParcelFileDescriptorLeaseRegistry.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/DescriptorHandle.kt`
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
-- Modify: `apps/local_media_hub/lib/features/risk_spike/risk_spike_controller.dart`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/ParcelFileDescriptorLeaseRegistryTest.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/ParcelFileDescriptorLeaseRegistry.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/DescriptorHandle.kt`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
+- Modify: `apps/pocket_cinema/lib/features/risk_spike/risk_spike_controller.dart`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/ParcelFileDescriptorLeaseRegistryTest.kt`
 - Modify: `docs/adr/004-android-media-source-strategy.md`
 - Modify: `docs/manual-tests/milestone-0-android.md`
 
@@ -1705,8 +1705,8 @@ fun `failed open retains no lease`() {
 - [ ] **Step 2: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.ParcelFileDescriptorLeaseRegistryTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.ParcelFileDescriptorLeaseRegistryTest"
 Pop-Location
 ```
 
@@ -1742,7 +1742,7 @@ The production handle wraps `ParcelFileDescriptor`; the test's `FakeDescriptorHa
 Run the same Task 9 MP4/MKV/seek/lifecycle/sequential-session checklist with the FD strategy. If it passes, select it in ADR-004. If it fails for a source reason, execute Task 11.
 
 ```powershell
-git add apps/local_media_hub docs/adr/004-android-media-source-strategy.md docs/manual-tests/milestone-0-android.md
+git add apps/pocket_cinema docs/adr/004-android-media-source-strategy.md docs/manual-tests/milestone-0-android.md
 git commit -m "feat: add Android file descriptor playback leases"
 ```
 
@@ -1751,13 +1751,13 @@ git commit -m "feat: add Android file descriptor playback leases"
 **Execution condition:** Run this task only when Tasks 9 and 10 both record source failures and the representative codec is otherwise supported.
 
 **Files:**
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/LoopbackRangeServer.kt`
-- Create: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/HttpRange.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/HttpRangeTest.kt`
-- Create: `apps/local_media_hub/android/app/src/test/kotlin/com/tidyreel/local_media_hub/platform/LoopbackRangeServerTest.kt`
-- Modify: `apps/local_media_hub/android/app/src/main/AndroidManifest.xml`
-- Create: `apps/local_media_hub/android/app/src/main/res/xml/network_security_config.xml`
-- Modify: `apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageHostApiImpl.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/LoopbackRangeServer.kt`
+- Create: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/HttpRange.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/HttpRangeTest.kt`
+- Create: `apps/pocket_cinema/android/app/src/test/kotlin/com/pocketcinema/app/platform/LoopbackRangeServerTest.kt`
+- Modify: `apps/pocket_cinema/android/app/src/main/AndroidManifest.xml`
+- Create: `apps/pocket_cinema/android/app/src/main/res/xml/network_security_config.xml`
+- Modify: `apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageHostApiImpl.kt`
 - Modify: `docs/adr/004-android-media-source-strategy.md`
 
 **Interfaces:**
@@ -1790,8 +1790,8 @@ fun `unknown token returns 404 without opening descriptor`() {
 - [ ] **Step 2: Verify RED**
 
 ```powershell
-Push-Location apps/local_media_hub/android
-.\gradlew.bat testDebugUnitTest --tests "com.tidyreel.local_media_hub.platform.HttpRangeTest" --tests "com.tidyreel.local_media_hub.platform.LoopbackRangeServerTest"
+Push-Location apps/pocket_cinema/android
+.\gradlew.bat testDebugUnitTest --tests "com.pocketcinema.app.platform.HttpRangeTest" --tests "com.pocketcinema.app.platform.LoopbackRangeServerTest"
 Pop-Location
 ```
 
@@ -1833,7 +1833,7 @@ For a full `200` response, omit `Content-Range`; for `206`, require it. `Loopbac
 Run the complete Task 9 checklist. Record port/token redacted evidence and select or reject the proxy in ADR-004.
 
 ```powershell
-git add apps/local_media_hub docs/adr/004-android-media-source-strategy.md docs/manual-tests/milestone-0-android.md
+git add apps/pocket_cinema docs/adr/004-android-media-source-strategy.md docs/manual-tests/milestone-0-android.md
 git commit -m "feat: add loopback range playback fallback"
 ```
 
@@ -1861,7 +1861,7 @@ Each ADR uses the master template: status, date, decision owners, context, decis
 ```powershell
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat format --output=none --set-exit-if-changed .
 powershell -ExecutionPolicy Bypass -File tool/generate.ps1
-git diff --exit-code -- apps/local_media_hub/lib/infrastructure/android/generated apps/local_media_hub/android/app/src/main/kotlin/com/tidyreel/local_media_hub/platform/StorageApi.g.kt
+git diff --exit-code -- apps/pocket_cinema/lib/infrastructure/android/generated apps/pocket_cinema/android/app/src/main/kotlin/com/pocketcinema/app/platform/StorageApi.g.kt
 ```
 
 Expected: all commands exit 0 and generated outputs are unchanged.
@@ -1881,11 +1881,11 @@ Push-Location packages/media_playback
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat analyze
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat test
 Pop-Location
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat analyze
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test
 Pop-Location
-Push-Location apps/local_media_hub/android
+Push-Location apps/pocket_cinema/android
 .\gradlew.bat testDebugUnitTest
 Pop-Location
 ```
@@ -1895,11 +1895,11 @@ Expected: zero analyzer issues and zero test failures.
 - [ ] **Step 4: Build Android and inspect permissions/exported components**
 
 ```powershell
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat build apk --debug
 Pop-Location
-C:\Users\vmach\AppData\Local\Android\Sdk\build-tools\35.0.0\aapt.exe dump permissions apps\local_media_hub\build\app\outputs\flutter-apk\app-debug.apk
-C:\Users\vmach\AppData\Local\Android\Sdk\build-tools\35.0.0\aapt.exe dump xmltree apps\local_media_hub\build\app\outputs\flutter-apk\app-debug.apk AndroidManifest.xml
+C:\Users\vmach\AppData\Local\Android\Sdk\build-tools\35.0.0\aapt.exe dump permissions apps\pocket_cinema\build\app\outputs\flutter-apk\app-debug.apk
+C:\Users\vmach\AppData\Local\Android\Sdk\build-tools\35.0.0\aapt.exe dump xmltree apps\pocket_cinema\build\app\outputs\flutter-apk\app-debug.apk AndroidManifest.xml
 ```
 
 If build-tools uses a different installed version, use the exact `aapt.exe` path reported by `Get-ChildItem C:\Users\vmach\AppData\Local\Android\Sdk\build-tools -Filter aapt.exe -Recurse` and record it in `docs/environment.md`. Confirm no broad storage/media permission and no unexpected exported component.

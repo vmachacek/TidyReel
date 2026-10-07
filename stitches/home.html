@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Pocket Cinema - Catalog</title>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "surface": "#10131b",
+            "secondary-fixed-dim": "#ffb86b",
+            "surface-container": "#1c1f28",
+            "on-background": "#e0e2ed",
+            "on-tertiary-fixed": "#001e2c",
+            "on-secondary-fixed": "#2c1700",
+            "surface-container-high": "#272a32",
+            "on-secondary-container": "#583300",
+            "secondary": "#ffb86b",
+            "surface-container-highest": "#32353d",
+            "error": "#ffb4ab",
+            "on-tertiary-fixed-variant": "#004c69",
+            "on-secondary-fixed-variant": "#683d00",
+            "primary-fixed-dim": "#ffb4a3",
+            "primary-container": "#ff5a36",
+            "inverse-surface": "#e0e2ed",
+            "on-error-container": "#ffdad6",
+            "surface-bright": "#363942",
+            "on-tertiary-container": "#002f42",
+            "tertiary-fixed": "#c4e7ff",
+            "error-container": "#93000a",
+            "on-surface": "#e0e2ed",
+            "on-error": "#690005",
+            "on-secondary": "#492900",
+            "on-tertiary": "#00354a",
+            "surface-container-low": "#181b24",
+            "secondary-container": "#ed9000",
+            "surface-variant": "#32353d",
+            "primary-fixed": "#ffdad2",
+            "on-primary-fixed-variant": "#8c1900",
+            "on-surface-variant": "#e3beb6",
+            "outline": "#aa8982",
+            "secondary-fixed": "#ffdcbc",
+            "on-primary-container": "#5a0c00",
+            "primary": "#ffb4a3",
+            "outline-variant": "#5b403a",
+            "surface-container-lowest": "#0b0e16",
+            "tertiary-container": "#009dd3",
+            "surface-tint": "#ffb4a3",
+            "inverse-on-surface": "#2d3039",
+            "on-primary": "#630f00",
+            "on-primary-fixed": "#3d0600",
+            "inverse-primary": "#b52603",
+            "tertiary-fixed-dim": "#7bd0ff",
+            "background": "#10131b",
+            "tertiary": "#7bd0ff",
+            "surface-dim": "#10131b"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-lg": "1.5rem",
+            "space-xs": "0.25rem",
+            "margin-tablet": "2rem",
+            "space-md": "1rem",
+            "space-xl": "2.5rem",
+            "gutter-tablet": "1.5rem",
+            "space-sm": "0.5rem",
+            "gutter": "1rem",
+            "margin": "1rem"
+          },
+          "fontFamily": {
+            "body-sm": ["Plus Jakarta Sans"],
+            "body-lg": ["Plus Jakarta Sans"],
+            "headline-lg-mobile": ["Sora"],
+            "body-md": ["Plus Jakarta Sans"],
+            "label-ui": ["Plus Jakarta Sans"],
+            "headline-lg": ["Sora"],
+            "headline-sm": ["Sora"],
+            "label-code-sm": ["JetBrains Mono"],
+            "display-hero-mobile": ["Sora"],
+            "headline-md": ["Sora"],
+            "label-code-lg": ["JetBrains Mono"],
+            "display-hero": ["Sora"]
+          },
+          "fontSize": {
+            "body-sm": ["12px", { "lineHeight": "18px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "body-lg": ["16px", { "lineHeight": "24px", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-lg-mobile": ["22px", { "lineHeight": "28px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "body-md": ["14px", { "lineHeight": "20px", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-ui": ["13px", { "lineHeight": "16px", "letterSpacing": "0.02em", "fontWeight": "600" }],
+            "headline-lg": ["28px", { "lineHeight": "36px", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "headline-sm": ["16px", { "lineHeight": "22px", "letterSpacing": "0em", "fontWeight": "600" }],
+            "label-code-sm": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+            "display-hero-mobile": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+            "headline-md": ["20px", { "lineHeight": "26px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-code-lg": ["14px", { "lineHeight": "18px", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "display-hero": ["44px", { "lineHeight": "52px", "letterSpacing": "-0.03em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
+<style>
+    .material-symbols-outlined {
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      display: inline-block;
+      vertical-align: middle;
+      line-height: 1;
+    }
+    .custom-scrollbar::-webkit-scrollbar {
+      height: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.02);
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.12);
+      border-radius: 9999px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: rgba(255, 90, 54, 0.4);
+    }
+  </style>
+</head>
+<body class="bg-surface text-on-surface antialiased min-h-screen pb-24 md:pb-12 selection:bg-primary-container selection:text-white">
+<!-- Shared Component: TopAppBar -->
+<header class="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-space-md md:px-margin-tablet h-14 w-full bg-surface-container-lowest/80 backdrop-blur-xl dark:bg-surface-container-lowest/80 shadow-2xl">
+<div class="flex items-center gap-space-lg">
+<div class="flex items-center gap-space-sm cursor-pointer group">
+<span class="material-symbols-outlined text-primary text-2xl transition-transform group-hover:scale-105" data-icon="movie" style="font-variation-settings: 'FILL' 1;">movie</span>
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-bold tracking-tight text-primary dark:text-primary">Pocket Cinema</span>
+</div>
+<!-- Desktop Filter Tabs inside Nav -->
+<nav class="hidden md:flex items-center gap-1.5 ml-4 bg-surface-container-low/60 p-1 rounded-full border border-white/5">
+<button class="px-3.5 py-1 rounded-full font-label-ui text-label-ui bg-primary-container/20 text-primary border border-primary/30 shadow-sm transition-all duration-150">All</button>
+<button class="px-3.5 py-1 rounded-full font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface transition-colors">Movies</button>
+<button class="px-3.5 py-1 rounded-full font-label-ui text-label-ui text-on-surface-variant hover:text-on-surface transition-colors">TV Shows</button>
+</nav>
+</div>
+<!-- Center/Right Search and Indicators -->
+<div class="flex items-center gap-space-md">
+<!-- Search Input Container -->
+<div class="relative hidden sm:flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-on-surface-variant/60 text-lg pointer-events-none" data-icon="search">search</span>
+<input class="w-56 md:w-72 bg-surface-container-low/90 border border-white/10 rounded-full pl-9 pr-8 py-1.5 font-body-sm text-body-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:border-primary-container/80 focus:ring-1 focus:ring-primary-container/80 transition-all" placeholder="Search titles, directors, tags..." type="text"/>
+<span class="material-symbols-outlined absolute right-2.5 text-on-surface-variant/40 hover:text-on-surface cursor-pointer text-sm" data-icon="close">close</span>
+</div>
+<!-- Mobile Search Icon Trigger -->
+<button aria-label="Search" class="sm:hidden p-2 rounded-full hover:bg-surface-container-high/40 text-on-surface-variant active:scale-95 transition-transform">
+<span class="material-symbols-outlined" data-icon="search">search</span>
+</button>
+<!-- Local Library Status Indicator -->
+<div class="flex items-center gap-2 px-3 py-1 bg-surface-container-low rounded-full border border-white/5" title="Connected to Local Archival Storage">
+<span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+<span class="hidden md:inline font-label-code-sm text-label-code-sm text-on-surface-variant">STORAGE ONLINE</span>
+</div>
+</div>
+</header>
+<!-- Main Content Canvas -->
+<main class="pt-16 max-w-[1440px] mx-auto px-space-md md:px-margin-tablet space-y-space-xl">
+<!-- Hero Spotlight Section -->
+<section class="relative rounded-2xl overflow-hidden border border-white/10 bg-surface-container-lowest mt-3 group shadow-[0_24px_48px_-12px_rgba(0,0,0,0.8)]">
+<!-- Backdrop Image with Gradient Scrim -->
+<div class="relative h-[340px] md:h-[420px] w-full overflow-hidden">
+<img class="w-full h-full object-cover object-center filter brightness-[0.78] contrast-[1.05] transition-transform duration-700 ease-out group-hover:scale-105" data-alt="An expansive, cinematic wide-angle shot of a glowing futuristic metropolis bathed in dusk twilight with neon amber atmospheric haze. The architecture features sleek curving glass monolithic towers, holographic signage, and quiet rain-slicked sky-bridges. Deep obsidian slate shadows blend into vibrant glowing coral horizon lighting, creating a theater-grade visual tone." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDJKbJKINawXOrO-E3it-KcJ72gYSJq7J4175l9hRo1Zr6kBLmR_UykHUlSNAW-SjqLa4btAWcl0UvXM4xcrgj04WQMKQftE_ftmzOKHBut2z3oeMvhD6lrtbLxNkUjSxzwTjh85pi2Av0tMVoXeGDhFkE1zO81z7fA37Pxy61mJtdNWWKg2u5r9vBHCzQpBZaMlBJhVLT0CXNTsTWe72QMq5VM2pvsk62Qs222tKrj"/>
+<!-- Multi-stop Gradient Overlays -->
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/60 to-transparent"></div>
+<div class="absolute inset-0 bg-gradient-to-r from-surface-container-lowest/90 via-surface-container-lowest/40 to-transparent"></div>
+</div>
+<!-- Content Overlay -->
+<div class="absolute bottom-0 left-0 right-0 p-space-lg md:p-space-xl flex flex-col justify-end max-w-2xl z-10">
+<div class="flex items-center gap-2.5 mb-2.5">
+<span class="px-2.5 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-primary-container text-white font-semibold">FEATURED SPOTLIGHT</span>
+<span class="text-on-surface-variant/80 font-body-sm text-body-sm">•</span>
+<span class="text-on-surface-variant font-label-code-sm text-label-code-sm">2024</span>
+<span class="text-on-surface-variant/80 font-body-sm text-body-sm">•</span>
+<span class="text-on-surface-variant font-label-code-sm text-label-code-sm">Animation, Adventure, Sci-Fi</span>
+</div>
+<h1 class="font-display-hero-mobile md:font-display-hero text-display-hero-mobile md:text-display-hero font-bold text-on-surface tracking-tight mb-2 text-white drop-shadow-md">
+          Astro Kid: Star Voyager
+        </h1>
+<p class="font-body-md text-body-md text-on-surface-variant line-clamp-2 md:line-clamp-3 mb-space-lg max-w-xl leading-relaxed">
+          Separated from his parents following the destruction of their spaceship, young Willy crash-lands onto an uncharted, wild planet. Guided by a survival robot, he must navigate lush biodomes and strange creatures.
+        </p>
+<!-- Actions -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="inline-flex items-center gap-2 px-6 py-2.5 rounded-full bg-primary-container hover:bg-[#ff441e] text-white font-headline-sm text-headline-sm font-semibold shadow-lg shadow-primary-container/25 active:scale-95 transition-all">
+<span class="material-symbols-outlined" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+<span>Play Now</span>
+</button>
+<button class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-surface-container-highest/60 hover:bg-surface-container-highest text-on-surface border border-white/10 font-body-md text-body-md font-medium backdrop-blur-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="info">info</span>
+<span>More Info</span>
+</button>
+<button aria-label="Add to Favorites" class="p-2.5 rounded-full bg-surface-container-highest/40 hover:bg-surface-container-highest text-on-surface-variant hover:text-white border border-white/5 backdrop-blur-md active:scale-95 transition-all">
+<span class="material-symbols-outlined text-lg" data-icon="bookmark_border">bookmark_border</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Filter and Sorting Strip -->
+<section class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm py-2 border-b border-white/5">
+<div class="flex items-center gap-2 flex-wrap">
+<span class="font-label-ui text-label-ui text-on-surface-variant/60 mr-1">Sort by:</span>
+<button class="px-3 py-1 rounded-full font-label-ui text-label-ui bg-surface-container-high text-primary border border-primary/20">Recently Added</button>
+<button class="px-3 py-1 rounded-full font-label-ui text-label-ui bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-white/5 hover:border-white/10 transition-colors">A-Z</button>
+<button class="px-3 py-1 rounded-full font-label-ui text-label-ui bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-white/5 hover:border-white/10 transition-colors">Release Year</button>
+<button class="px-3 py-1 rounded-full font-label-ui text-label-ui bg-surface-container-low text-on-surface-variant hover:text-on-surface border border-white/5 hover:border-white/10 transition-colors">Unwatched</button>
+</div>
+<div class="flex items-center gap-3 self-end sm:self-auto font-label-code-sm text-label-code-sm text-on-surface-variant/70">
+<span>Showing 9 Titles</span>
+<div class="flex items-center bg-surface-container-low rounded-lg p-0.5 border border-white/5">
+<button aria-label="Grid View" class="p-1 text-primary rounded bg-surface-container-high">
+<span class="material-symbols-outlined text-base" data-icon="grid_view">grid_view</span>
+</button>
+<button aria-label="List View" class="p-1 text-on-surface-variant/50 hover:text-on-surface rounded">
+<span class="material-symbols-outlined text-base" data-icon="view_list">view_list</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Section 1: All TV Shows -->
+<section class="space-y-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-baseline gap-space-sm">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg font-bold text-on-surface">All TV Shows</h2>
+<span class="font-label-code-sm text-label-code-sm text-primary">5 Available</span>
+</div>
+<button class="inline-flex items-center gap-1 font-label-ui text-label-ui text-on-surface-variant hover:text-primary transition-colors">
+<span>Browse All</span>
+<span class="material-symbols-outlined text-base" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+<!-- Poster Grid / Carousel (Responsive 5-column fluid layout) -->
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-space-md">
+<!-- TV Show 1: SpongeBob SquarePants -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Rich colorful theatrical cartoon poster of SpongeBob SquarePants with Patrick Star under glowing neon blue bioluminescent waves in Bikini Bottom. Stylized modern 3D cinematic lighting, sharp crisp detail with subtle bubble particles floating in obsidian aquatic atmosphere with clean theatrical presentation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCsSeBD8-UISyPEwJGxEBthxqCOKdBazQ8zJzeAzm7m7dRAR1J_ovB2aPhaqGuI_fqDGZd8h_8S6bkWdxW_0zSltek3HI__X1nI0maPt0WWm5SBED-VFt9cmChqopy2q_9_mq_Q1mteoj0qysMvbFL_C3ZksPFV5Beqf1XK8MeoISEv7B_XbClYEh6EQkT4-T-Z_dyZQmVnttrXTWwOA-HrWer9oWbq_mGrgbdKxyLe"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<!-- Quick Action Overlay -->
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play SpongeBob SquarePants" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<!-- Top Chip -->
+<div class="absolute top-2.5 left-2.5">
+<span class="px-2 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-black/70 backdrop-blur-md text-on-surface border border-white/10">13 Seasons</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">SpongeBob SquarePants</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>Complete</span>
+<span class="text-secondary">HD</span>
+</div>
+</div>
+</article>
+<!-- TV Show 2: Bluey -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Heartwarming animated poster featuring the Blue Heeler dog Bluey and Bingo joyfully playing in a sun-dappled Australian suburban backyard. Soft morning golden hour lighting filters through lush jacaranda trees, styled with refined cinema-grade glass textures and deep obsidian shadows matching a modern media catalog interface." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyz3bxlhZ-9frXAZXTkoXB4C8cOO0yc4AOjTxReiEuGeR5qaikW1SFyjewlWXKhSBJrEH3keTqlGjPAiZM7dw2eO8leYqHf-frhfPepbHNfhfHeDzvw_UWWqCDdW0_zlBUVT38boJpoeaMK7bJFjrntYrR91hilKihdV6zqODrnG08dLraaP2RZx8lDCP_cCVKniMlp_ppQ9ll_chSlshFNhmeM43edv-WdNefdwvL"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Bluey" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 left-2.5">
+<span class="px-2 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-black/70 backdrop-blur-md text-on-surface border border-white/10">3 Seasons</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Bluey</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>3 Seasons · Complete</span>
+<span class="text-secondary">4K</span>
+</div>
+</div>
+</article>
+<!-- TV Show 3: Peppa Pig -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Clean minimalist theatrical showcase poster featuring Peppa Pig and George on a gentle rolling emerald hill under a soft twilight sky with gentle rain clouds. Vibrant clean styling, high fidelity color gradients, and warm amber accents accentuating the dark cinema card frame." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDgZaAbbYCziEFJBZetCtGDEQVvVxV3cZ_GGdAB_NzYRPtw-81a6fxSXLK9G0ZnHaff7SI2bWGmS_pg6QJxaeMpFNoDLE8N4NyLROMxEUKHXXdWrc84wwz86CYzEtHCVsD2PraRFn6Adm6r_lLiLaWIkUie9HOAdnwY7dxpjRIsBcc6aPqtWyt3KsGQwJoMkMRjwqSnYu8OKGVKFvZsODYBQZKc2TWM2AGyJtuDDYR5"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Peppa Pig" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 left-2.5">
+<span class="px-2 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-black/70 backdrop-blur-md text-on-surface border border-white/10">7 Seasons</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Peppa Pig</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>7 Seasons · Complete</span>
+<span class="text-secondary">HD</span>
+</div>
+</div>
+</article>
+<!-- TV Show 4: Octonauts -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Deep ocean underwater exploration poster featuring Captain Barnacles and the Octopod submerged near a vibrant deep-sea hydrothermal coral ridge. Bioluminescent turquoise and amber water illumination, cinematic volumetric light shafts, deep contrast obsidian oceanic shadows." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAqE78FemnQmNym6CZgUnmzSzyeTnfrZpzN-cKUbJFZ10pSaPT2TIJuMmh_9QKxIw8m38kVdz7XcM7yBaINTwuPU5IRiM4VvY8Vye-8d-SHtQV2ymncpywb0mtrtcHp3NY6y2sZo1XQhBG293SYHDdQ0t0X7FB-nCYuYMuPK2x10FZb7nBrWP47T1zh5j5e0x9a-oCpWyZnequn7qxDuh-O7M4u8XyUN06PjyjbGDKd"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Octonauts" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 left-2.5">
+<span class="px-2 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-black/70 backdrop-blur-md text-on-surface border border-white/10">5 Seasons</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Octonauts</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>5 Seasons · Complete</span>
+<span class="text-secondary">4K</span>
+</div>
+</div>
+</article>
+<!-- TV Show 5: Ben & Holly's Little Kingdom -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)] col-span-2 sm:col-span-1">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Enchanted miniature fantasy forest poster showing Ben Elf and Princess Holly perched upon a luminous spotted toadstool amid glowing fireflies. Soft bokeh fairy glade illumination with rich emerald green and midnight indigo gradients, refined with crisp dark UI framing and subtle amber highlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAi9a4pT8qERAW3vIUdvSGUU-HoXvqjS7eN8XwSzd9zzEM2U9Jahkz77_NPteBcKdZbB-oBiT0PNE9nPk4b6zQllgfa2Ax4Tf2ew8BS1UcdkkOC-c-OV1OCMUbnPhd5kTsT27AAr2hsKTk9SY3HhyxBe9RpWmzjPS4dQEfwKnYYGGWr2Lbje1ViPunYygprJN4vHTgA9ATYTdJyZT0Geb4Fu_mb8CkFJ8nyJXSMME-1"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Ben &amp; Holly's Little Kingdom" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 left-2.5">
+<span class="px-2 py-0.5 rounded-full font-label-code-sm text-label-code-sm bg-black/70 backdrop-blur-md text-on-surface border border-white/10">2 Seasons</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Ben &amp; Holly's Little Kingdom</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>2 Seasons · Complete</span>
+<span class="text-secondary">HD</span>
+</div>
+</div>
+</article>
+</div>
+</section>
+<!-- Section 2: All Movies -->
+<section class="space-y-space-md pt-2">
+<div class="flex items-center justify-between">
+<div class="flex items-baseline gap-space-sm">
+<h2 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg font-bold text-on-surface">All Movies</h2>
+<span class="font-label-code-sm text-label-code-sm text-primary">4 Available</span>
+</div>
+<button class="inline-flex items-center gap-1 font-label-ui text-label-ui text-on-surface-variant hover:text-primary transition-colors">
+<span>Browse All</span>
+<span class="material-symbols-outlined text-base" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+<!-- Poster Grid (4-column layout for movies) -->
+<div class="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-4 gap-space-md">
+<!-- Movie 1: Zootopia -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Theatrical movie poster depicting Judy Hopps and Nick Wilde walking down a bustling glass-paneled boulevard in downtown Zootopia. Gleaming neon tram tracks, towering modern animal architecture in the background, sharp crisp lighting with deep slate shadows and electric amber highlights." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDxp69OgKlW6zhYDyYBym_DZP3RZO6AZiL1zMdy1iUqOabVkOCQgRnoniquzr11fx_xLO3njVcw4qSFJ8favTVB5v8WJozFcnei1pwg5oStZeA4BiBWSwFU5YlLv-Vs798F1s5r78njvnOUee-CDD0vtSSHwcM3akyS-TP4u_hy6FmxRupUokl-pN_FnTWKmt9eeU5QwGWrt-p9loOK0lrlywsgx3m_r6bkFSrvNBKy"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Zootopia" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2 py-0.5 rounded font-label-code-sm text-label-code-sm bg-black/75 backdrop-blur-md text-secondary border border-secondary/20">4K HDR</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Zootopia</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>2016</span>
+<span>1h 48m</span>
+</div>
+</div>
+</article>
+<!-- Movie 2: Astro Kid -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Sci-fi animated movie poster of young Willy in his high-tech space suit standing alongside a friendly round white robot and an alien creature in a crystalline fluorescent wilderness. Lush extraterrestrial flora, deep obsidian night sky with two moons, lit by vivid coral and violet bioluminescence." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMgLBy5NLR2E2mjNzVa00Iduh0rp9wz018cFXY1rXmEN92eUvVaJY3bV0gS3s5d0eb8yyDX0oetL40NOzBcMfMcFcWezHNGG3cqEwqWw8YUkKJku2uThRBNqLfj244AUZqOGF1TndQynVOrDww1cuaNyWGZ_kfuPBJFLZVH9eSqHMyaZQMwKzbkSycIqGccG0_NnHvv3O5nfM8x_JSHF01E1lCX4eKM6R-pTw4Ffxb"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play Astro Kid" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2 py-0.5 rounded font-label-code-sm text-label-code-sm bg-black/75 backdrop-blur-md text-secondary border border-secondary/20">HD</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">Astro Kid</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>2019</span>
+<span>1h 30m</span>
+</div>
+</div>
+</article>
+<!-- Movie 3: The Fixies: Top Secret -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="High-tech animated adventure poster showing tiny glowing Fixie creatures running along illuminated copper circuit boards inside a futuristic device. Electric sparks in high-contrast cyan and amber, clean macro perspective, dramatic dark studio lighting with deep tonal layering." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB9LFYKYguHBCdD8gs1h1dQXTWeQhIl2CGLMsCCnXfFA1f6MNCFIebMetuttP83SlFncjzxNGUfD2Zj1SQ-OwB5FAng2Vidd3RE64XBe2CK21j0TFOjXgxas5yN9PotWbct82TC02n61LMsmSydxvx4oqVrsFe8w70mJn16lL0SvoqwiqBkqFObG_J20EvwH-rX_nRSTm9ZC7NBK-gPuTLfRp4kLpAUCHoK_b8ALGZc"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play The Fixies: Top Secret" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2 py-0.5 rounded font-label-code-sm text-label-code-sm bg-black/75 backdrop-blur-md text-secondary border border-secondary/20">HD</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">The Fixies: Top Secret</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>2017</span>
+<span>1h 20m</span>
+</div>
+</div>
+</article>
+<!-- Movie 4: The SpongeBob Movie: Sponge on the Run -->
+<article class="group relative rounded-xl overflow-hidden bg-surface-container-low border border-white/5 hover:border-primary/40 transition-all duration-300 hover:shadow-[0_12px_28px_-6px_rgba(0,0,0,0.8)]">
+<div class="aspect-[2/3] w-full relative overflow-hidden bg-surface-container">
+<img class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" data-alt="Cinematic 3D animation poster featuring SpongeBob and Patrick arriving at the flashy lost city of Atlantic City filled with dazzling casino neon signs. Rich atmospheric haze in magenta and golden amber, high dynamic contrast, cinematic depth of field framing the vibrant characters." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA7NncC3Eq5G7dhdfTJ0xM0tI98xgekZDTWgAStgIYJ3-9saiXJNv2UKnaWG2NRrS4olmN6moMG_bCgiC2Kl4DvqSy0290axiCVHO_Hn3b4fGgjhYAij-UVB5txMAnd0hqgUD9SD587TBK3xs6WzPeFO7Jx9TZGFuIyIMSOc1H4pHOWtXzARBfVgZ0bMy2oIkv8iye3VnbVYz6Alifh1MzvlaymNH6sTymPY_69fI49"/>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-container-lowest via-surface-container-lowest/30 to-transparent"></div>
+<div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 backdrop-blur-[2px]">
+<button aria-label="Play The SpongeBob Movie" class="w-12 h-12 rounded-full bg-primary-container text-white flex items-center justify-center shadow-lg transform scale-75 group-hover:scale-100 transition-transform active:scale-95">
+<span class="material-symbols-outlined text-2xl" data-icon="play_arrow" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+</button>
+</div>
+<div class="absolute top-2.5 right-2.5">
+<span class="px-2 py-0.5 rounded font-label-code-sm text-label-code-sm bg-black/75 backdrop-blur-md text-secondary border border-secondary/20">4K HDR</span>
+</div>
+</div>
+<div class="p-space-sm space-y-1">
+<h3 class="font-headline-sm text-headline-sm text-on-surface truncate group-hover:text-primary transition-colors">The SpongeBob Movie</h3>
+<div class="flex items-center justify-between font-label-code-sm text-label-code-sm text-on-surface-variant/80">
+<span>2020</span>
+<span>1h 31m</span>
+</div>
+</div>
+</article>
+</div>
+</section>
+</main>
+<!-- Shared Component: BottomNavBar (Visible on Mobile/Handheld devices, hidden on web/tablet desktop) -->
+<nav class="md:hidden fixed bottom-0 left-0 right-0 w-full z-50 flex justify-around items-center px-space-sm py-2 pb-safe bg-surface-container-lowest/90 backdrop-blur-2xl dark:bg-surface-container-lowest/90 border-t border-outline-variant/20 shadow-[0_-8px_24px_rgba(0,0,0,0.8)]">
+<!-- Home (Active Destination) -->
+<a class="flex flex-col items-center justify-center text-primary dark:text-primary font-bold px-3 py-1.5 rounded-full bg-primary-container/20 border border-primary/30 active:scale-95 transition-transform duration-150" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="home" style="font-variation-settings: 'FILL' 1;">home</span>
+<span class="font-label-ui text-label-ui mt-0.5">Home</span>
+</a>
+<!-- Library -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 hover:text-primary dark:hover:text-primary transition-colors active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="video_library">video_library</span>
+<span class="font-label-ui text-label-ui mt-0.5">Library</span>
+</a>
+<!-- Activity -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 hover:text-primary dark:hover:text-primary transition-colors active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="sync_saved_locally">sync_saved_locally</span>
+<span class="font-label-ui text-label-ui mt-0.5">Activity</span>
+</a>
+<!-- Settings -->
+<a class="flex flex-col items-center justify-center text-on-surface-variant/70 dark:text-on-surface-variant/70 px-3 py-1.5 hover:text-primary dark:hover:text-primary transition-colors active:scale-95 duration-150" href="#">
+<span class="material-symbols-outlined text-xl" data-icon="tune">tune</span>
+<span class="font-label-ui text-label-ui mt-0.5">Settings</span>
+</a>
+</nav>
+</body></html>

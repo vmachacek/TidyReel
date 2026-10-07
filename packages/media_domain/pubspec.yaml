@@ -1,5 +1,5 @@
 name: media_domain
-description: Platform-neutral result and cancellation primitives for TidyReel.
+description: Platform-neutral result and cancellation primitives for Pocket Cinema.
 version: 1.0.0
 publish_to: none
 resolution: workspace

@@ -2,10 +2,15 @@ import 'package:media_domain/media_domain.dart';
 import 'package:media_platform_storage/media_platform_storage.dart';
 
 final class PlaybackRequest {
-  const PlaybackRequest({required this.sourceLease, this.autoplay = true});
+  const PlaybackRequest({
+    required this.sourceLease,
+    this.autoplay = true,
+    this.startPosition = Duration.zero,
+  });
 
   final MediaSourceLease sourceLease;
   final bool autoplay;
+  final Duration startPosition;
 }
 
 final class PlaybackSnapshot {
@@ -40,13 +45,14 @@ final class PlaybackSnapshot {
     Duration? position,
     Duration? duration,
     AppFailure? failure,
+    bool clearFailure = false,
   }) => PlaybackSnapshot(
     isOpen: isOpen ?? this.isOpen,
     isPlaying: isPlaying ?? this.isPlaying,
     isBuffering: isBuffering ?? this.isBuffering,
     position: position ?? this.position,
     duration: duration ?? this.duration,
-    failure: failure ?? this.failure,
+    failure: clearFailure ? null : failure ?? this.failure,
   );
 }
 

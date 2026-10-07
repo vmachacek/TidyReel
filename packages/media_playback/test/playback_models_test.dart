@@ -55,5 +55,9 @@ void main() {
     expect(updated.position, const Duration(seconds: 30));
     expect(updated.duration, const Duration(minutes: 2));
     expect(updated.failure, same(failure));
+    final recovered = updated.copyWith(clearFailure: true);
+    expect(recovered.failure, isNull);
+    expect(recovered.position, updated.position);
+    expect(recovered.isPlaying, isTrue);
   });
 }

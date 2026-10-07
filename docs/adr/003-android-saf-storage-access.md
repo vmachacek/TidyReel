@@ -2,11 +2,11 @@
 
 - Status: accepted
 - Date: 2026-10-07
-- Decision owners: TidyReel maintainers
+- Decision owners: Pocket Cinema maintainers
 
 ## Context
 
-TidyReel needs durable, user-scoped read access to a media directory without
+Pocket Cinema needs durable, user-scoped read access to a media directory without
 requesting broad storage permissions or relying on filesystem paths. Android
 document providers expose stable tree and document identities whose details
 must remain behind the platform boundary.

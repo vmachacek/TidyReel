@@ -3,7 +3,7 @@
 - Date: 2026-10-07
 - Result: PASS
 - Device: Samsung SM-T500, Android 12 / API 31, `android-arm64`
-- App: debug build, application id `com.tidyreel.local_media_hub`
+- App: debug build, application id `com.pocketcinema.app`
 - Scope: Android Storage Access Framework (SAF), recursive enumeration,
   native probing, direct `content://` playback, subtitle attachment, and
   resource cleanup

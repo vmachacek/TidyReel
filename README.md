@@ -1,10 +1,9 @@
-# TidyReel
+# Pocket Cinema
 
-TidyReel is a local-first Flutter media-library application. The current code
-is the completed Milestone 0 Android risk spike: it proves scoped folder
-access, recursive media discovery, native metadata probing, direct playback,
-and external SRT subtitles on the target tablet before catalog features are
-built.
+Pocket Cinema is a local-first Flutter media-library application with scoped
+Android folder access, a movie and TV catalog, and direct local playback. TV
+files are grouped as **show → season → episode**. Optional TMDB matching adds
+canonical titles and episode names while retaining uncertain local evidence.
 
 ## What works
 
@@ -18,17 +17,23 @@ built.
   attach a bounded in-memory SRT sidecar.
 - Present controlled repair and failure states in a tablet-friendly diagnostic
   UI.
+- Group TV files across nested release folders, preserve combined episodes and
+  segment letters, and keep unresolved episodes visible within their season.
+- Browse the catalog, use local artwork, save a watchlist, and resume playback.
+- Connect TMDB in Library Settings with a securely stored Read Access Token.
+- Cache metadata offline, review title candidates, and preserve manual choices.
 
-The polished catalog, persistence database, matching, online metadata, LLM
-verification, durable playback progress, diagnostics export, and release
-pipeline are intentionally outside this milestone. See
-[implementation status](docs/implementation_status.md).
+The recognition policies from NormieRename have been ported into a pure Dart
+parser; the Android app does not require its .NET or Claude runtime. See
+[media matching](docs/media-matching.md) for setup and current limits, and
+[implementation status](docs/implementation_status.md) for remaining work.
 
 ## Repository layout
 
 ```text
-apps/local_media_hub/            Flutter app and Android platform adapter
+apps/pocket_cinema/            Flutter app and Android platform adapter
 packages/media_domain/           Shared result, failure, and cancellation types
+packages/media_parser/           Local filename/folder recognition and fixtures
 packages/media_platform_storage/ Storage/probe contracts and classification
 packages/media_playback/         Playback contracts
 docs/adr/                        Accepted platform decisions
@@ -53,15 +58,15 @@ From the repository root:
 
 ```powershell
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat pub get
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat run
 Pop-Location
 ```
 
-The main application manifest does not request all-files, broad storage, media
-collection, or Internet permission. Flutter's debug-only manifest adds
-`INTERNET` for hot reload and debugger communication. Choose a folder in the
-system picker; only that persisted read grant is used for media.
+The main application manifest requests Internet access for optional TMDB
+metadata. It does not request all-files, broad storage, or media collection
+permissions. Choose a folder in the system picker; only that persisted read
+grant is used for media. Online matching stays disabled until a token is added.
 
 ## Generate and verify
 
@@ -84,14 +89,14 @@ C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat analyze
 C:\dev\sdks\flutter-3.47.3\flutter\bin\dart.bat test
 Pop-Location
 
-Push-Location apps/local_media_hub
+Push-Location apps/pocket_cinema
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat analyze
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat test test
 C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat build apk --debug
 Pop-Location
 
 $env:JAVA_HOME = 'C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot'
-Push-Location apps/local_media_hub/android
+Push-Location apps/pocket_cinema/android
 .\gradlew.bat testDebugUnitTest
 Pop-Location
 ```

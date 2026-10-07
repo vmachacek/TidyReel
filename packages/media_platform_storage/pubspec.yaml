@@ -1,5 +1,5 @@
 name: media_platform_storage
-description: Platform-neutral storage and media probe contracts for TidyReel.
+description: Platform-neutral storage and media probe contracts for Pocket Cinema.
 version: 1.0.0
 publish_to: none
 resolution: workspace

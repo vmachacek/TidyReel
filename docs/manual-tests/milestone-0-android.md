@@ -64,3 +64,33 @@ and sequential-session checks. `directContentUri` is therefore selected in
 ADR-004. File-descriptor and loopback HTTP fallbacks were not implemented or
 attempted because their execution condition was not met.
 
+## Final verification rerun
+
+The complete checklist was repeated after the final clean build on 2026-10-07.
+The freshly built APK was installed before the rerun. Results matched the gate
+table: the grant restored after force-stop/relaunch; the nested scan reported
+four discovered, two playable, one subtitle, and one ignored item; both probe
+results matched the table above; both codecs rendered through direct URIs;
+forward/backward seek, pause/resume, background cleanup, SRT rendering, and
+three sequential sessions passed; and release returned to the repair state.
+The final filtered log review again found zero fatal, permission, or bad-file-
+descriptor markers.
+
+Automated and packaging evidence for the same source revision:
+
+- repository formatter: 50 Dart files checked, zero changes;
+- typed bridge regeneration: generated Dart and Kotlin output unchanged;
+- analyzers: zero issues in all three packages and the Flutter app;
+- Dart packages: 3 domain and 5 storage tests passed; the playback contract
+  package has no standalone tests, with adapter behavior covered in the app;
+- Flutter app: 20 unit/widget tests passed;
+- Flutter device integration: 1 fake end-to-end flow passed on the SM-T500;
+- Android/Kotlin: 10 tests passed with zero failures, errors, or skips;
+- final debug APK: built successfully from `lib/main.dart` (234,500,868 bytes)
+  and contained no integration-test manifest marker;
+- packaged permissions: Flutter debug `INTERNET` plus AndroidX's app-scoped
+  dynamic-receiver permission; no storage, media collection, or all-files
+  permission;
+- packaged components: exported launcher activity as expected; AndroidX's
+  exported profile installer receiver is protected by `android.permission.DUMP`;
+  the AndroidX startup provider is not exported.

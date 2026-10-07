@@ -4,7 +4,7 @@ Status date: 2026-10-07
 
 | Capability | Status | Tests | Platform validation | Notes/ADR |
 | --- | --- | --- | --- | --- |
-| App scaffold | In progress | Workspace analysis and unit/widget suites pass; final aggregate verification pending | Debug APK installed and launched on SM-T500 | Android-only Milestone 0 workspace |
+| App scaffold | Complete | All analyzers clean; 3 domain, 5 storage, 20 app, 1 device-integration, and 10 Kotlin tests pass | Final debug APK built, inspected, installed, and launched on SM-T500 | Android-only Milestone 0 workspace |
 | Drift schema/migrations | Not started | — | — | ADR-002 pending |
 | Android SAF root grant | Complete | Kotlin permission-policy and Flutter controller tests | Picker, restart restoration, explicit release, repair state, and cold-start absence passed on SM-T500 | [ADR-003](adr/003-android-saf-storage-access.md) |
 | SAF recursive enumeration | Complete | Kotlin traversal/cancellation tests; Dart classifier and scan mapping tests | Nested traversal and AppleDouble exclusion passed on SM-T500 | [ADR-003](adr/003-android-saf-storage-access.md) |

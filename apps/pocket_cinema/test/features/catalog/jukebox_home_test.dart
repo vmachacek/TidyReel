@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
@@ -47,6 +50,80 @@ String _selectedTitle(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('jukebox-title'))).data!;
 
 void main() {
+  testWidgets('delayed resume preferences align the cover, title and actions', (
+    tester,
+  ) async {
+    await _tablet(tester);
+    final preferences = Completer<String>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+          if (call.method == 'loadPreferences') return preferences.future;
+          return null;
+        });
+    final first = files.file('Movies/Zulu (2020).mp4');
+    final resumed = files.file('Movies/Alpha (2016).mp4');
+    final routes = _Routes();
+    await tester.pumpWidget(
+      _app(
+        fixtures.filesAvailableState.copyWith(entries: [first, resumed]),
+        routes,
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(_selectedTitle(tester), 'Zulu');
+    expect(find.text('1 / 2'), findsOneWidget);
+
+    preferences.complete(
+      jsonEncode({
+        'positions': {resumed.storageKey: 40},
+        'durations': {resumed.storageKey: 120},
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(_selectedTitle(tester), 'Alpha');
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(
+      tester.widget<PageView>(find.byType(PageView)).controller!.page,
+      closeTo(1, .001),
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('jukebox-play')),
+        matching: find.text('Resume'),
+      ),
+      findsOneWidget,
+    );
+    final hero = tester.widget<JukeboxHero>(find.byType(JukeboxHero));
+    final selected = hero.selectedTitle;
+    await tester.tap(find.byKey(const Key('jukebox-watchlist')));
+    await tester.pumpAndSettle();
+    expect(hero.library.isSaved(selected), isTrue);
+    expect(
+      hero.library.isSaved(
+        hero.titles.singleWhere((title) => title.first.id == first.storageKey),
+      ),
+      isFalse,
+    );
+
+    await tester.tap(find.byKey(const Key('jukebox-stage')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.id,
+      selected.id,
+    );
+    Navigator.of(tester.element(find.byType(CatalogDetail))).pop();
+    await tester.pumpAndSettle();
+
+    final playContext = tester.element(find.byKey(const Key('jukebox-play')));
+    await tester.tap(find.byKey(const Key('jukebox-play')));
+    final route = routes.pushed.last as MaterialPageRoute<void>;
+    final player = route.builder(playContext) as CinemaPlayer;
+    expect(player.video.id, resumed.storageKey);
+    expect(player.queue.map((video) => video.id), [resumed.storageKey]);
+    await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+
   for (final isSeries in [false, true]) {
     testWidgets(
       'tapping the center cover opens ${isSeries ? 'show' : 'movie'} details',

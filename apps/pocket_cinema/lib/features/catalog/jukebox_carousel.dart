@@ -40,16 +40,28 @@ class _JukeboxCarouselState extends State<JukeboxCarousel> {
   @override
   void didUpdateWidget(JukeboxCarousel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final requested = _bounded(widget.initialIndex);
+    final requestedSelectionChanged =
+        oldWidget.initialIndex != widget.initialIndex && requested != _selected;
     final oldLabel = oldWidget.labels.isEmpty
         ? null
         : oldWidget.labels[_selected.clamp(0, oldWidget.labels.length - 1)];
     final retained = oldLabel == null ? -1 : widget.labels.indexOf(oldLabel);
-    final next = _bounded(retained < 0 ? _selected : retained);
-    if (next != _selected || oldWidget.covers.length != widget.covers.length) {
+    final next = requestedSelectionChanged
+        ? requested
+        : _bounded(retained < 0 ? _selected : retained);
+    final countChanged = oldWidget.covers.length != widget.covers.length;
+    if (next != _selected || countChanged) {
       _selected = next;
-      _retireController();
+      if (!requestedSelectionChanged || countChanged) _retireController();
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && widget.covers.isNotEmpty) widget.onSelected(_selected);
+        if (!mounted || widget.covers.isEmpty || _selected != next) return;
+        if (requestedSelectionChanged && _controller?.hasClients == true) {
+          // Restore parent selection after layout without animating through
+          // other titles or resetting a drag already reported to the parent.
+          _controller!.jumpToPage(next);
+        }
+        widget.onSelected(_selected);
       });
     }
   }

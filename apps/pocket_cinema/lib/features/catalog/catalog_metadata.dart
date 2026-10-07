@@ -1,7 +1,45 @@
+import 'dart:typed_data';
+
 /// Provider-independent metadata for the display catalog.
 ///
 /// These values never change storage paths or the numbering parsed from a file.
 enum CatalogMediaKind { movie, series }
+
+enum CatalogArtworkKind { poster, backdrop }
+
+class CatalogArtworkCandidate {
+  const CatalogArtworkCandidate({
+    required this.filePath,
+    required this.kind,
+    required this.width,
+    required this.height,
+    this.language,
+  });
+
+  final String filePath;
+  final CatalogArtworkKind kind;
+  final int width;
+  final int height;
+  final String? language;
+
+  String get previewUrl => Uri.https(
+    'image.tmdb.org',
+    '/t/p/${kind == CatalogArtworkKind.poster ? 'w342' : 'w780'}$filePath',
+  ).toString();
+
+  String get downloadUrl => Uri.https(
+    'image.tmdb.org',
+    '/t/p/${kind == CatalogArtworkKind.poster ? 'w780' : 'w1280'}$filePath',
+  ).toString();
+}
+
+/// Optional artwork support, independent of cached title and episode metadata.
+abstract interface class CatalogArtworkSource {
+  /// Fetch the current image choices from the provider on every call.
+  Future<List<CatalogArtworkCandidate>> artwork({required String providerId});
+
+  Future<Uint8List> downloadArtwork(CatalogArtworkCandidate candidate);
+}
 
 class CatalogMetadataCandidate {
   const CatalogMetadataCandidate({

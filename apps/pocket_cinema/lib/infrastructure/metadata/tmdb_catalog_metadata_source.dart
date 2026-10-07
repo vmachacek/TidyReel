@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import '../../features/catalog/catalog_metadata.dart';
 import 'catalog_metadata_http_transport.dart';
 
 /// TMDB v3 metadata using the account's API Read Access Token.
-class TmdbCatalogMetadataSource implements CatalogMetadataSource {
+class TmdbCatalogMetadataSource
+    implements CatalogMetadataSource, CatalogArtworkSource {
   TmdbCatalogMetadataSource({
     required String accessToken,
     CatalogMetadataHttpTransport? transport,
@@ -35,6 +37,141 @@ class TmdbCatalogMetadataSource implements CatalogMetadataSource {
   final int maxResponseBytes;
   final int maxSearchPages;
   bool _disposed = false;
+
+  static const maxArtworkBytes = 8 * 1024 * 1024;
+
+  @override
+  Future<List<CatalogArtworkCandidate>> artwork({
+    required String providerId,
+  }) async {
+    _validateShowId(providerId);
+    // Omitting language returns all artwork, including text-free images. Do
+    // not cache this request: opening or refreshing the picker re-fetches it.
+    final json = await _getJson('/3/tv/$providerId/images', const {});
+    if (_positiveInt(json['id']).toString() != providerId) {
+      throw _invalidResponse;
+    }
+    final candidates = <CatalogArtworkCandidate>[];
+    for (final kind in CatalogArtworkKind.values) {
+      final results =
+          json[kind == CatalogArtworkKind.poster ? 'posters' : 'backdrops'];
+      if (results is! List) throw _invalidResponse;
+      final paths = <String>{};
+      for (final result in results) {
+        if (result is! Map<String, dynamic>) throw _invalidResponse;
+        final path = _requiredText(result['file_path']);
+        if (!_validArtworkPath(path)) throw _invalidResponse;
+        final language = _optionalText(result['iso_639_1']);
+        if (language != null && !RegExp(r'^[a-z]{2}$').hasMatch(language)) {
+          throw _invalidResponse;
+        }
+        final candidate = CatalogArtworkCandidate(
+          filePath: path,
+          kind: kind,
+          width: _positiveInt(result['width']),
+          height: _positiveInt(result['height']),
+          language: language,
+        );
+        if (paths.add(path)) candidates.add(candidate);
+      }
+    }
+    return List.unmodifiable(candidates);
+  }
+
+  @override
+  Future<Uint8List> downloadArtwork(CatalogArtworkCandidate candidate) async {
+    if (!_validArtworkPath(candidate.filePath)) {
+      throw const CatalogMetadataException('The selected artwork is invalid.');
+    }
+    if (_disposed) {
+      throw const CatalogMetadataException(
+        'The metadata connection is closed.',
+      );
+    }
+    try {
+      final response = await _transport
+          .get(
+            uri: Uri.parse(candidate.downloadUrl),
+            // The public image CDN must never receive the API bearer token.
+            headers: const {'Accept': 'image/jpeg,image/png,image/webp'},
+            timeout: timeout,
+            maxResponseBytes: maxArtworkBytes,
+          )
+          .timeout(timeout);
+      if (response.statusCode == 404) {
+        throw const CatalogMetadataException(
+          'This artwork is no longer available. Refresh and choose another.',
+        );
+      }
+      if (response.statusCode == 429) {
+        throw const CatalogMetadataException(
+          'TMDB has received too many requests. Try again later.',
+        );
+      }
+      if (response.statusCode != 200) {
+        throw const CatalogMetadataException(
+          'TMDB artwork is unavailable right now. Try again later.',
+        );
+      }
+      if (response.body.length > maxArtworkBytes ||
+          !_isRasterImage(response.body)) {
+        throw const CatalogMetadataException(
+          'TMDB returned invalid artwork. Refresh and choose another.',
+        );
+      }
+      return Uint8List.fromList(response.body);
+    } on CatalogMetadataException {
+      rethrow;
+    } on TimeoutException {
+      throw const CatalogMetadataException(
+        'The artwork download timed out. Try again.',
+      );
+    } on FormatException {
+      throw const CatalogMetadataException(
+        'The artwork could not be downloaded. Choose another image.',
+      );
+    } catch (_) {
+      throw const CatalogMetadataException(
+        'Could not download the artwork. Check your connection and try again.',
+      );
+    }
+  }
+
+  static void _validateShowId(String providerId) {
+    final numericId = int.tryParse(providerId);
+    if (!RegExp(r'^[1-9]\d*$').hasMatch(providerId) ||
+        numericId == null ||
+        numericId > 2147483647) {
+      throw const CatalogMetadataException('The selected show is invalid.');
+    }
+  }
+
+  static bool _validArtworkPath(String path) =>
+      RegExp(r'^/[A-Za-z0-9_-]+\.(jpg|jpeg|png|webp)$').hasMatch(path);
+
+  static bool _isRasterImage(List<int> bytes) {
+    if (bytes.length < 12) return false;
+    final jpeg = bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+    final png =
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4e &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0d &&
+        bytes[5] == 0x0a &&
+        bytes[6] == 0x1a &&
+        bytes[7] == 0x0a;
+    final webp =
+        bytes[0] == 0x52 &&
+        bytes[1] == 0x49 &&
+        bytes[2] == 0x46 &&
+        bytes[3] == 0x46 &&
+        bytes[8] == 0x57 &&
+        bytes[9] == 0x45 &&
+        bytes[10] == 0x42 &&
+        bytes[11] == 0x50;
+    return jpeg || png || webp;
+  }
 
   @override
   Future<List<CatalogMetadataCandidate>> search({

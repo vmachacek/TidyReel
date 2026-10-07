@@ -170,6 +170,17 @@ class CatalogLibrary extends ChangeNotifier {
     if (_presentationDirty) {
       _presentationTitles = matcher.apply(_localTitles, _catalogScope);
       _presentationDirty = false;
+      if (!_disposed &&
+          _propagateArtworkAliases(_presentationTitles) &&
+          !_artworkChoicesPersistScheduled) {
+        _artworkChoicesPersistScheduled = true;
+        unawaited(
+          Future<void>.microtask(() async {
+            _artworkChoicesPersistScheduled = false;
+            if (!_disposed) await persist();
+          }),
+        );
+      }
     }
     return _presentationTitles;
   }
@@ -236,6 +247,19 @@ class CatalogLibrary extends ChangeNotifier {
   final positions = <String, int>{};
   final durations = <String, int>{};
   final _thumbnails = <String, Future<Uint8List?>>{};
+  final _chosenArtwork = <String, Future<Uint8List?>>{};
+  final _artworkChoices = <String, String>{};
+  int _artworkSequence = 0;
+  bool _artworkChoicesPersistScheduled = false;
+  final _availableArtwork =
+      <
+        String,
+        ({
+          CatalogArtworkSource source,
+          List<CatalogArtworkCandidate> candidates,
+        })
+      >{};
+  final _savingArtwork = <String>{};
   final _metadata = <String, Future<MediaProbeResult?>>{};
   bool _disposed = false;
   Future<void> load() => _loading ??= _load();
@@ -254,6 +278,15 @@ class CatalogLibrary extends ChangeNotifier {
           (key, value) => MapEntry(key, (value as num).toInt()),
         ),
       );
+      final artworkChoices = data['artworkChoices'];
+      if (artworkChoices is Map<String, dynamic>) {
+        for (final entry in artworkChoices.entries) {
+          final value = entry.value;
+          if (value is String && value.isNotEmpty) {
+            _artworkChoices[entry.key] = value;
+          }
+        }
+      }
       matcher.restore((data['titleMatches'] as Map<String, dynamic>?) ?? {});
       matcher.localOnly.addAll(
         (data['localOnlyTitles'] as List<dynamic>? ?? []).whereType<String>(),
@@ -280,16 +313,19 @@ class CatalogLibrary extends ChangeNotifier {
     }
   }
 
+  String _preferencesJson() => jsonEncode({
+    'saved': saved.toList(),
+    'positions': positions,
+    'durations': durations,
+    'titleMatches': matcher.toJson(),
+    'localOnlyTitles': matcher.localOnly.toList(),
+    'artworkChoices': _artworkChoices,
+  });
+
   Future<void> persist() async {
     try {
       await channel.invokeMethod<void>('savePreferences', {
-        'value': jsonEncode({
-          'saved': saved.toList(),
-          'positions': positions,
-          'durations': durations,
-          'titleMatches': matcher.toJson(),
-          'localOnlyTitles': matcher.localOnly.toList(),
-        }),
+        'value': _preferencesJson(),
       });
     } on Object {
       /* Playback remains usable if saving fails. */
@@ -333,6 +369,243 @@ class CatalogLibrary extends ChangeNotifier {
     if (!_disposed && notify) notifyListeners();
   }
 
+  CatalogTitle _artworkTitle(CatalogTitle title) =>
+      currentTitles
+          .where(
+            (current) =>
+                current.id == title.id ||
+                current.localIds.any(title.localIds.contains) ||
+                current.videos.any((video) => video.id == title.first.id),
+          )
+          .firstOrNull ??
+      title;
+
+  String _artworkKey(
+    CatalogTitle title,
+    String scope,
+    CatalogArtworkKind kind,
+  ) => _artworkAliasKeys(title, scope, kind).first;
+
+  List<String> _artworkAliasKeys(
+    CatalogTitle title,
+    String scope,
+    CatalogArtworkKind kind,
+  ) {
+    final ids = title.localIds.isEmpty ? [title.id] : [...title.localIds]
+      ..sort();
+    return [
+      for (final id in ids) jsonEncode([scope, id, kind.name]),
+    ];
+  }
+
+  bool _propagateArtworkAliases(List<CatalogTitle> titles) {
+    var changed = false;
+    for (final title in titles.where((title) => title.isSeries)) {
+      for (final kind in CatalogArtworkKind.values) {
+        final aliases = _artworkAliasKeys(title, _catalogScope, kind);
+        final chosen = aliases
+            .map((alias) => _artworkChoices[alias])
+            .whereType<String>()
+            .firstOrNull;
+        if (chosen == null) continue;
+        for (final alias in aliases) {
+          if (_artworkChoices.containsKey(alias)) continue;
+          _artworkChoices[alias] = chosen;
+          changed = true;
+        }
+      }
+    }
+    return changed;
+  }
+
+  String _artworkRequestKey(CatalogTitle title, String scope) => jsonEncode([
+    _artworkKey(title, scope, CatalogArtworkKind.poster),
+    title.providerId,
+  ]);
+
+  void _checkArtworkRequest(
+    CatalogTitle title,
+    String scope,
+    String requestKey,
+    CatalogArtworkSource source,
+  ) {
+    if (_disposed ||
+        controller.state.root?.locator.opaqueValue != scope ||
+        !identical(matcher.artworkSource, source) ||
+        _artworkRequestKey(_artworkTitle(title), scope) != requestKey) {
+      throw const CatalogMetadataException(
+        'The show or library changed. Refresh artwork again.',
+      );
+    }
+  }
+
+  /// Explicit refresh always asks the provider again without replacing artwork.
+  Future<List<CatalogArtworkCandidate>> refreshArtwork(
+    CatalogTitle title,
+  ) async {
+    await load();
+    final current = _artworkTitle(title);
+    if (!current.isSeries) {
+      throw const CatalogMetadataException(
+        'Artwork refresh is available for TV shows.',
+      );
+    }
+    final source = matcher.artworkSource;
+    if (source == null) {
+      throw const CatalogMetadataException(
+        'Enable TMDB in Library Settings to refresh artwork.',
+      );
+    }
+    if (current.providerId == null) {
+      throw const CatalogMetadataException(
+        'Review the title match before refreshing artwork.',
+      );
+    }
+    final scope = controller.state.root?.locator.opaqueValue;
+    if (scope == null) {
+      throw const CatalogMetadataException('Choose a media folder first.');
+    }
+    final requestKey = _artworkRequestKey(current, scope);
+    final candidates = await source.artwork(providerId: current.providerId!);
+    _checkArtworkRequest(current, scope, requestKey, source);
+    final result = List<CatalogArtworkCandidate>.unmodifiable(candidates);
+    _availableArtwork[requestKey] = (source: source, candidates: result);
+    return result;
+  }
+
+  /// Download and durably save first; only then change the displayed artwork.
+  Future<void> selectArtwork(
+    CatalogTitle title,
+    CatalogArtworkCandidate candidate,
+  ) async {
+    final current = _artworkTitle(title);
+    final scope = controller.state.root?.locator.opaqueValue;
+    if (scope == null) {
+      throw const CatalogMetadataException('Choose a media folder first.');
+    }
+    final requestKey = _artworkRequestKey(current, scope);
+    final available = _availableArtwork[requestKey];
+    if (available == null || !available.candidates.contains(candidate)) {
+      throw const CatalogMetadataException(
+        'Refresh artwork before choosing an image.',
+      );
+    }
+    final source = available.source;
+    _checkArtworkRequest(current, scope, requestKey, source);
+    final key = _artworkKey(current, scope, candidate.kind);
+    if (!_savingArtwork.add(key)) {
+      throw const CatalogMetadataException('Artwork is already being saved.');
+    }
+    String? pendingBlobKey;
+    final previousChoices = <String, String?>{};
+    try {
+      final bytes = await source.downloadArtwork(candidate);
+      _checkArtworkRequest(current, scope, requestKey, source);
+      if (bytes.isEmpty || bytes.length > 8 * 1024 * 1024) {
+        throw const CatalogMetadataException(
+          'The selected artwork could not be downloaded.',
+        );
+      }
+      final blobKey = jsonEncode([
+        key,
+        DateTime.now().microsecondsSinceEpoch,
+        _artworkSequence++,
+      ]);
+      final saved = await channel.invokeMethod<bool>('saveArtwork', {
+        'key': blobKey,
+        'bytes': bytes,
+      });
+      if (saved != true) {
+        throw const CatalogMetadataException(
+          'Could not save artwork on this device. Try again.',
+        );
+      }
+      pendingBlobKey = blobKey;
+      _checkArtworkRequest(current, scope, requestKey, source);
+      for (final alias in _artworkAliasKeys(
+        _artworkTitle(current),
+        scope,
+        candidate.kind,
+      )) {
+        previousChoices[alias] = _artworkChoices[alias];
+        _artworkChoices[alias] = blobKey;
+      }
+      // The previous blobs stay immutable until the new references are saved.
+      await channel.invokeMethod<void>('savePreferences', {
+        'value': _preferencesJson(),
+      });
+      pendingBlobKey = null;
+      _chosenArtwork[blobKey] = Future.value(bytes);
+      _thumbnails.clear();
+      if (!_disposed) notifyListeners();
+      unawaited(
+        _deleteUnusedArtwork(previousChoices.values.whereType<String>()),
+      );
+    } on Object catch (error) {
+      // Alias propagation may have linked another name while the preference
+      // write was pending. Those new links must roll back with this choice.
+      if (pendingBlobKey != null) {
+        for (final alias
+            in _artworkChoices.entries
+                .where((entry) => entry.value == pendingBlobKey)
+                .map((entry) => entry.key)
+                .toList()) {
+          previousChoices.putIfAbsent(alias, () => null);
+        }
+      }
+      for (final entry in previousChoices.entries) {
+        if (_artworkChoices[entry.key] != pendingBlobKey) continue;
+        final previous = entry.value;
+        if (previous == null) {
+          _artworkChoices.remove(entry.key);
+        } else {
+          _artworkChoices[entry.key] = previous;
+        }
+      }
+      if (pendingBlobKey != null) {
+        try {
+          await channel.invokeMethod<bool>('deleteArtwork', {
+            'key': pendingBlobKey,
+          });
+        } on Object {
+          // An unused private blob is harmless if cleanup is unavailable.
+        }
+      }
+      if (previousChoices.isNotEmpty) await persist();
+      if (error is CatalogMetadataException) rethrow;
+      throw const CatalogMetadataException(
+        'Could not save artwork on this device. Try again.',
+      );
+    } finally {
+      _savingArtwork.remove(key);
+    }
+  }
+
+  Future<void> _deleteUnusedArtwork(Iterable<String> blobKeys) async {
+    for (final key in blobKeys.toSet()) {
+      if (_artworkChoices.containsValue(key)) continue;
+      try {
+        final deleted = await channel.invokeMethod<bool>('deleteArtwork', {
+          'key': key,
+        });
+        if (deleted == true) _chosenArtwork.remove(key)?.ignore();
+      } on Object {
+        // Cleanup failure does not affect the saved selection.
+      }
+    }
+  }
+
+  Future<Uint8List?> _readChosenArtwork(String key) =>
+      _chosenArtwork.putIfAbsent(key, () async {
+        try {
+          return await channel.invokeMethod<Uint8List>('readArtwork', {
+            'key': key,
+          });
+        } on Object {
+          return null;
+        }
+      });
+
   Future<Uint8List?> thumbnail(CatalogVideo video, {bool backdrop = false}) {
     final root = controller.state.root;
     if (root == null) return Future.value();
@@ -341,10 +614,31 @@ class CatalogLibrary extends ChangeNotifier {
       controller.state.artworkEntries,
       backdrop: backdrop,
     );
+    final title = currentTitles
+        .where(
+          (title) =>
+              title.isSeries && title.videos.any((v) => v.id == video.id),
+        )
+        .firstOrNull;
+    final chosenKeys = <String>{};
+    if (title != null) {
+      for (final alias in _artworkAliasKeys(
+        title,
+        root.locator.opaqueValue,
+        backdrop ? CatalogArtworkKind.backdrop : CatalogArtworkKind.poster,
+      )) {
+        final chosen = _artworkChoices[alias];
+        if (chosen != null) chosenKeys.add(chosen);
+      }
+    }
     final key =
-        '${root.locator.opaqueValue}|${video.id}|${video.file.modifiedAtUtc}|${video.file.sizeBytes}|${artwork?.storageKey}|${artwork?.modifiedAtUtc}';
+        '${root.locator.opaqueValue}|${video.id}|$backdrop|${jsonEncode(chosenKeys.toList())}|${video.file.modifiedAtUtc}|${video.file.sizeBytes}|${artwork?.storageKey}|${artwork?.modifiedAtUtc}';
 
     return _thumbnails.putIfAbsent(key, () async {
+      for (final chosenKey in chosenKeys) {
+        final chosen = await _readChosenArtwork(chosenKey);
+        if (chosen != null) return chosen;
+      }
       if (artwork != null) {
         try {
           final result = await controller.storage.readSmallFile(

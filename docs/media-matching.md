@@ -21,9 +21,26 @@ separate from ordinary catalog preferences and logs. Turning online matching
 off clears the credential; cached metadata remains available offline. Live lookup
 and the device Keystore round-trip require validation with a user-provided token.
 
-Only title searches and release/first-air years are sent to TMDB. Episode requests
-use provider identifiers and season numbers. Video contents, storage URIs, and
-full paths are excluded from requests.
+Title searches and release/first-air years are sent to TMDB. Episode requests
+use provider identifiers and season numbers; artwork requests use the matched
+show identifier. Image previews and selected downloads come from TMDB's image
+service. Video contents, storage URIs, and full paths are excluded from requests.
+
+## Refresh TV artwork
+
+1. Open a TV show's details and select **Refresh artwork**.
+2. Choose **Poster** or **Backdrop**, then select an image from the gallery to
+   compare it with the current artwork.
+3. Select **Use selected** to download and save the image, or **Keep current**
+   to leave the current artwork in place. **Refresh again** requests a fresh
+   list of images from TMDB.
+
+TMDB must be enabled, and the show must have a title match. The picker offers
+**Review match** for an unidentified show. Posters and backdrops are chosen
+separately and apply across the show's locally available seasons and episodes.
+Images are saved in private app storage and remain available offline after a
+restart. The media folder and its existing images stay untouched. A download or
+save failure retains the previous choice.
 
 ## Recognition and review
 
@@ -65,5 +82,5 @@ selection. It should leave uncertain identity or cartoon episode order for revie
 Matching runs in the background. Successful matches and manual choices are cached
 in existing native catalog preferences. Provider failures preserve playback;
 Settings offers retries. The production Drift database, durable job queue,
-provider aliases, alternate episode orders, and full metadata/artwork enrichment
-from the build specification remain pending.
+provider aliases, alternate episode orders, and full automatic movie/season
+metadata and artwork enrichment from the build specification remain pending.

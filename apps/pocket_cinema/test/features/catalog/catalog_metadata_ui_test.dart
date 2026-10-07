@@ -111,7 +111,11 @@ void main() {
     );
     await tester.pumpAndSettle();
     await _openOnlyTitle(tester);
-    await tester.ensureVisible(find.byType(EpisodeCard));
+    await tester.scrollUntilVisible(
+      find.byType(EpisodeCard).hitTestable(),
+      200,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Season 1'), findsOneWidget);
@@ -122,6 +126,23 @@ void main() {
     expect(card.video.episode, isNull);
     expect(card.video.season, 1);
     expect(card.video.needsReview, isTrue);
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('refresh-tv-artwork')).hitTestable(),
+      -200,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('refresh-tv-artwork')));
+    await tester.pumpAndSettle();
+    expect(find.text('Current artwork'), findsOneWidget);
+    expect(
+      find.text('Enable TMDB in Library Settings to refresh artwork.'),
+      findsOneWidget,
+    );
+    await tester.tap(find.text('Keep current'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogDetail), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

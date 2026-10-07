@@ -3,6 +3,7 @@ package com.pocketcinema.app.platform
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.DocumentsContract
@@ -30,6 +31,7 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
     private val metadataExecutor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val channel = MethodChannel(messenger, "com.pocketcinema.app/catalog")
+    private val artwork = ArtworkStore(context.filesDir.resolve("catalog_artwork"), ::validateArtworkImage)
     @Volatile private var closed = false
 
     init {
@@ -39,13 +41,32 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
                 "savePreferences" -> {
                     val value = call.argument<String>("value")
                     if (value == null) result.error("INVALID_ARGUMENT", "Missing preferences.", null)
-                    else { preferences.edit().putString("library", value).apply(); result.success(null) }
+                    else preferencesResult(result) {
+                        check(preferences.edit().putString("library", value).commit())
+                        null
+                    }
                 }
                 "loadMetadataToken" -> metadataResult(result) { loadMetadataToken() }
                 "saveMetadataToken" -> {
                     val value = call.argument<String>("value")
                     if (value == null) result.error("INVALID_ARGUMENT", "Missing metadata token.", null)
                     else metadataResult(result) { saveMetadataToken(value); null }
+                }
+                "saveArtwork" -> {
+                    val key = call.argument<String>("key")
+                    val bytes = call.argument<ByteArray>("bytes")
+                    if (key == null || bytes == null) result.error("INVALID_ARGUMENT", "Missing artwork.", null)
+                    else artworkResult(result) { artwork.save(key, bytes); true }
+                }
+                "readArtwork" -> {
+                    val key = call.argument<String>("key")
+                    if (key == null) result.error("INVALID_ARGUMENT", "Missing artwork identifier.", null)
+                    else artworkResult(result) { artwork.read(key) }
+                }
+                "deleteArtwork" -> {
+                    val key = call.argument<String>("key")
+                    if (key == null) result.error("INVALID_ARGUMENT", "Missing artwork identifier.", null)
+                    else artworkResult(result) { artwork.delete(key); true }
                 }
                 "openMetadataHelp" -> runCatching {
                     context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://www.themoviedb.org/settings/api"))
@@ -93,6 +114,19 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
         }
     }
 
+    private fun preferencesResult(result: MethodChannel.Result, operation: () -> Any?) {
+        // Every preferences write uses the same serial queue and completes after durable commit.
+        metadataExecutor.execute {
+            val outcome = runCatching(operation)
+            main.post {
+                if (!closed) outcome.fold(
+                    onSuccess = { result.success(it) },
+                    onFailure = { result.error("PREFERENCES_STORAGE_ERROR", "Could not save the library preferences.", null) },
+                )
+            }
+        }
+    }
+
     private fun metadataResult(result: MethodChannel.Result, operation: () -> Any?) {
         metadataExecutor.execute {
             val outcome = runCatching(operation)
@@ -103,6 +137,32 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
                 )
             }
         }
+    }
+
+    private fun artworkResult(result: MethodChannel.Result, operation: () -> Any?) {
+        executor.execute {
+            val outcome = runCatching(operation)
+            main.post {
+                if (!closed) outcome.fold(
+                    onSuccess = { result.success(it) },
+                    onFailure = { result.error("ARTWORK_STORAGE_ERROR", "Could not access the saved artwork.", null) },
+                )
+            }
+        }
+    }
+
+    private fun validateArtworkImage(bytes: ByteArray): Boolean {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        if (bounds.outWidth !in 1..8192 || bounds.outHeight !in 1..8192 ||
+            bounds.outWidth.toLong() * bounds.outHeight > 32_000_000L) return false
+        // Decode a bounded preview so a malformed or oversized image cannot exhaust the heap.
+        var sample = 1
+        while (bounds.outWidth / sample > 1024 || bounds.outHeight / sample > 1024) sample *= 2
+        val options = BitmapFactory.Options().apply { inSampleSize = sample }
+        val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options) ?: return false
+        bitmap.recycle()
+        return true
     }
 
     private fun loadMetadataToken(): String? {

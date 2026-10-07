@@ -74,6 +74,34 @@ Map<String, Object?> episode({
   'show_id': showId,
 };
 
+Map<String, Object?> artworkImage({
+  Object? path = '/poster123.jpg',
+  Object? width = 1000,
+  Object? height = 1500,
+  Object? language = 'en',
+}) => {
+  'file_path': path,
+  'width': width,
+  'height': height,
+  'iso_639_1': language,
+};
+
+Map<String, Object?> artworkResponse({
+  Object? id = 1396,
+  Object? posters = const [],
+  Object? backdrops = const [],
+}) => {'id': id, 'posters': posters, 'backdrops': backdrops};
+
+const artworkCandidate = CatalogArtworkCandidate(
+  filePath: '/poster123.jpg',
+  kind: CatalogArtworkKind.poster,
+  width: 1000,
+  height: 1500,
+  language: 'en',
+);
+
+const jpegBytes = [0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0xff, 0xd9];
+
 void main() {
   late FakeTransport transport;
   late TmdbCatalogMetadataSource source;
@@ -86,6 +114,201 @@ void main() {
     );
   });
   tearDown(() => source.dispose());
+
+  test('Refreshes TV artwork without filtering languages or caching', () async {
+    transport.respond(
+      artworkResponse(
+        posters: [artworkImage()],
+        backdrops: [
+          artworkImage(
+            path: '/backdrop456.png',
+            width: 1920,
+            height: 1080,
+            language: null,
+          ),
+        ],
+      ),
+    );
+    transport.respond(
+      artworkResponse(posters: [artworkImage(path: '/new.jpg')]),
+    );
+    final first = await source.artwork(providerId: '1396');
+    final second = await source.artwork(providerId: '1396');
+    expect(transport.requests, hasLength(2));
+    for (final uri in transport.requests) {
+      expect(uri.scheme, 'https');
+      expect(uri.host, 'api.themoviedb.org');
+      expect(uri.path, '/3/tv/1396/images');
+      expect(uri.queryParameters, isEmpty);
+    }
+    expect(
+      transport.requestHeaders.first['Authorization'],
+      'Bearer test-read-token',
+    );
+    expect(first.map((item) => item.kind), [
+      CatalogArtworkKind.poster,
+      CatalogArtworkKind.backdrop,
+    ]);
+    expect(first.first.width, 1000);
+    expect(first.first.height, 1500);
+    expect(first.first.language, 'en');
+    expect(first.last.language, isNull);
+    expect(
+      first.first.previewUrl,
+      'https://image.tmdb.org/t/p/w342/poster123.jpg',
+    );
+    expect(
+      first.last.previewUrl,
+      'https://image.tmdb.org/t/p/w780/backdrop456.png',
+    );
+    expect(second.single.filePath, '/new.jpg');
+    expect(() => first.clear(), throwsUnsupportedError);
+  });
+
+  test('Returns no artwork and removes duplicate image choices', () async {
+    transport.respond(artworkResponse());
+    expect(await source.artwork(providerId: '1396'), isEmpty);
+    transport.respond(
+      artworkResponse(posters: [artworkImage(), artworkImage()]),
+    );
+    expect(await source.artwork(providerId: '1396'), hasLength(1));
+  });
+
+  test('Rejects invalid show IDs without making an artwork request', () async {
+    for (final id in ['../movie/1', '0', '-1', '01396', '2147483648']) {
+      await expectLater(
+        source.artwork(providerId: id),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+    }
+    expect(transport.requests, isEmpty);
+  });
+
+  test('Rejects malformed artwork and mismatched shows', () async {
+    for (final response in [
+      artworkResponse(id: 999),
+      artworkResponse(id: '1396'),
+      artworkResponse(posters: null),
+      artworkResponse(backdrops: {}),
+      artworkResponse(posters: [artworkImage(width: 0)]),
+      artworkResponse(posters: [artworkImage(height: 1.5)]),
+      artworkResponse(posters: [artworkImage(language: 5)]),
+      artworkResponse(posters: [artworkImage(path: '')]),
+      artworkResponse(posters: [artworkImage(path: '/nested/image.jpg')]),
+      artworkResponse(posters: [artworkImage(path: '/../private.jpg')]),
+      artworkResponse(posters: [artworkImage(path: '//example.com/image.jpg')]),
+      artworkResponse(posters: [artworkImage(path: '/image.svg')]),
+      artworkResponse(posters: [artworkImage(path: '/image.jpg?token=secret')]),
+    ]) {
+      transport.respond(response);
+      await expectLater(
+        source.artwork(providerId: '1396'),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+    }
+  });
+
+  test(
+    'Downloads bounded artwork without sending the API token to CDN',
+    () async {
+      transport.respondBytes(jpegBytes);
+      final bytes = await source.downloadArtwork(artworkCandidate);
+      expect(bytes, jpegBytes);
+      expect(
+        transport.requests.single.toString(),
+        'https://image.tmdb.org/t/p/w780/poster123.jpg',
+      );
+      expect(transport.requestHeaders.single, {
+        'Accept': 'image/jpeg,image/png,image/webp',
+      });
+      expect(transport.lastMaxResponseBytes, 8 * 1024 * 1024);
+      expect(transport.lastTimeout, const Duration(seconds: 10));
+    },
+  );
+
+  test('Downloads backdrop at a bounded landscape size', () async {
+    transport.respondBytes(jpegBytes);
+    await source.downloadArtwork(
+      const CatalogArtworkCandidate(
+        filePath: '/wide.jpg',
+        kind: CatalogArtworkKind.backdrop,
+        width: 3840,
+        height: 2160,
+      ),
+    );
+    expect(
+      transport.requests.single.toString(),
+      'https://image.tmdb.org/t/p/w1280/wide.jpg',
+    );
+  });
+
+  test('Refuses invalid artwork paths before making a download', () async {
+    for (final path in [
+      '//example.com/private.jpg',
+      '/../private.jpg',
+      '/image.jpg?api_key=secret',
+      '/image.svg',
+    ]) {
+      await expectLater(
+        source.downloadArtwork(
+          CatalogArtworkCandidate(
+            filePath: path,
+            kind: CatalogArtworkKind.poster,
+            width: 1000,
+            height: 1500,
+          ),
+        ),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+    }
+    expect(transport.requests, isEmpty);
+  });
+
+  test('Rejects non-image and oversized download bodies', () async {
+    for (final bytes in [
+      <int>[],
+      utf8.encode('<html>Server failure</html>'),
+      List<int>.filled(8 * 1024 * 1024 + 1, 0xff),
+    ]) {
+      transport.respondBytes(bytes);
+      await expectLater(
+        source.downloadArtwork(artworkCandidate),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+    }
+  });
+
+  test(
+    'Keeps artwork failures safe and refuses downloads after disposal',
+    () async {
+      for (final status in [301, 401, 403, 404, 429, 500]) {
+        transport.respondBytes(
+          utf8.encode('test-read-token https://example.com/private'),
+          status: status,
+        );
+        await expectLater(
+          source.downloadArtwork(artworkCandidate),
+          throwsA(
+            isA<CatalogMetadataException>().having(
+              (error) => error.message,
+              'safe failure',
+              allOf(
+                isNot(contains('test-read-token')),
+                isNot(contains('https://')),
+              ),
+            ),
+          ),
+        );
+      }
+      source.dispose();
+      final requestCount = transport.requests.length;
+      await expectLater(
+        source.downloadArtwork(artworkCandidate),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+      expect(transport.requests, hasLength(requestCount));
+    },
+  );
 
   test(
     'Searches movies using HTTPS, bearer headers, and release year',

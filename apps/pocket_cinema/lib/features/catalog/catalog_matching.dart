@@ -68,6 +68,8 @@ class CatalogMatcher extends ChangeNotifier {
   bool _running = false, _disposed = false;
   int _generation = 0;
   bool get enabled => _source != null;
+  CatalogArtworkSource? get artworkSource =>
+      _source is CatalogArtworkSource ? _source as CatalogArtworkSource : null;
   bool get busy => _running;
   String key(String scope, CatalogTitle title) => jsonEncode([scope, title.id]);
 

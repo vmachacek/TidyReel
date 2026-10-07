@@ -8,6 +8,7 @@ import '../risk_spike/risk_spike_controller.dart';
 import '../risk_spike/risk_spike_screen.dart';
 import '../risk_spike/risk_spike_state.dart';
 import '../risk_spike/widgets/failure_panel.dart';
+import 'catalog_artwork_picker.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
 import 'cinema_player.dart';
@@ -996,13 +997,14 @@ class _CatalogDetailState extends State<CatalogDetail> {
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 16),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Expanded(
-                        child: Text(
-                          title.matchStatus ?? 'Local grouping',
-                          style: const TextStyle(color: peach),
-                        ),
+                      Text(
+                        title.matchStatus ?? 'Local grouping',
+                        style: const TextStyle(color: peach),
                       ),
                       TextButton.icon(
                         onPressed: () => unawaited(
@@ -1011,6 +1013,22 @@ class _CatalogDetailState extends State<CatalogDetail> {
                         icon: const Icon(Icons.manage_search),
                         label: const Text('Review match'),
                       ),
+                      if (title.isSeries)
+                        OutlinedButton.icon(
+                          key: const Key('refresh-tv-artwork'),
+                          onPressed: () => unawaited(
+                            openCatalogArtworkPicker(
+                              context,
+                              library,
+                              title,
+                              onReviewMatch: () => unawaited(
+                                reviewCatalogMatch(context, library, title),
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.image_search),
+                          label: const Text('Refresh artwork'),
+                        ),
                     ],
                   ),
                 ),

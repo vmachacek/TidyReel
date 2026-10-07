@@ -85,8 +85,3 @@ void main() {
     expect(failure.failure.safeDetail, isNot(contains('content://')));
   });
 }
-
-const root = LibraryRootLocator(
-  storageKind: StorageKind.androidSaf,
-  opaqueValue: 'content://redacted-tree',
-);

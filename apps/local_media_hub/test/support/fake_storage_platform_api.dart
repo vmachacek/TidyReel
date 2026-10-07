@@ -1,4 +1,10 @@
 import 'package:local_media_hub/infrastructure/android/storage_platform_api.dart';
+import 'package:media_platform_storage/media_platform_storage.dart';
+
+const root = LibraryRootLocator(
+  storageKind: StorageKind.androidSaf,
+  opaqueValue: 'content://redacted-tree',
+);
 
 final class FakeStoragePlatformApi implements StoragePlatformApi {
   FakeStoragePlatformApi({

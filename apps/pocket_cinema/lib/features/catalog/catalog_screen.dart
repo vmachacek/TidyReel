@@ -12,6 +12,7 @@ import 'catalog_artwork_picker.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
 import 'cinema_player.dart';
+import 'jukebox_carousel.dart';
 import 'route_content_builder.dart';
 
 const coral = Color(0xFFFF5A36);
@@ -35,6 +36,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   String query = '', filter = 'All', sort = 'Recently Modified';
   bool listView = false;
   int destination = 0;
+  String? featuredTitleId;
   List<CatalogTitle> titlesFor(List<StorageEntrySnapshot> entries) =>
       library.titlesFor(entries);
 
@@ -248,7 +250,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
             ),
           )
           .toList();
-      final spotlight = continuing.isNotEmpty
+      final retainedSpotlight = visible.where((t) => t.id == featuredTitleId);
+      final spotlight = retainedSpotlight.isNotEmpty
+          ? retainedSpotlight.first
+          : continuing.isNotEmpty
           ? continuing.first
           : visible.isNotEmpty
           ? visible.first
@@ -362,41 +367,20 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ),
                 ],
                 if (spotlight != null && query.isEmpty && destination == 0) ...[
-                  CinemaHero(
-                    title: spotlight,
+                  JukeboxHero(
+                    titles: visible,
+                    selectedTitle: spotlight,
                     library: library,
-                    eyebrow: continuing.isNotEmpty
-                        ? 'CONTINUE WATCHING'
-                        : 'FROM YOUR LIBRARY',
-                    actions: [
-                      FilledButton.icon(
-                        onPressed: () => openVideo(
-                          context,
-                          library,
-                          library.next(spotlight),
-                          widget.playbackSurface,
-                          queue: spotlight.videos,
-                        ),
-                        icon: const Icon(Icons.play_arrow),
-                        label: Text(
-                          continuing.isNotEmpty ? 'Resume' : 'Play Now',
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => details(spotlight),
-                        icon: const Icon(Icons.info_outline),
-                        label: const Text('More Info'),
-                      ),
-                      IconButton.filledTonal(
-                        onPressed: () => library.toggleSaved(spotlight.id),
-                        tooltip: 'Toggle watchlist',
-                        icon: Icon(
-                          library.isSaved(spotlight)
-                              ? Icons.bookmark
-                              : Icons.bookmark_border,
-                        ),
-                      ),
-                    ],
+                    onSelected: (title) =>
+                        setState(() => featuredTitleId = title.id),
+                    onDetails: () => details(spotlight),
+                    onPlay: () => openVideo(
+                      context,
+                      library,
+                      library.next(spotlight),
+                      widget.playbackSurface,
+                      queue: spotlight.videos,
+                    ),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -791,6 +775,221 @@ class PosterCard extends StatelessWidget {
       ),
     ),
   );
+}
+
+class JukeboxHero extends StatelessWidget {
+  const JukeboxHero({
+    required this.titles,
+    required this.selectedTitle,
+    required this.library,
+    required this.onSelected,
+    required this.onDetails,
+    required this.onPlay,
+    super.key,
+  });
+
+  final List<CatalogTitle> titles;
+  final CatalogTitle selectedTitle;
+  final CatalogLibrary library;
+  final ValueChanged<CatalogTitle> onSelected;
+  final VoidCallback onDetails, onPlay;
+
+  @override
+  Widget build(BuildContext context) {
+    final title = selectedTitle;
+    final video = library.next(title);
+    final resume =
+        (library.positions[video.id] ?? 0) > 0 && !library.watched(video);
+    return Column(
+      children: [
+        JukeboxCarousel(
+          // A changed catalog starts at the retained title's new position.
+          key: ValueKey(titles.map((t) => t.id).join('\n')),
+          initialIndex: titles.indexWhere((t) => t.id == title.id),
+          labels: titles.map((t) => t.name).toList(),
+          onSelected: (index) => onSelected(titles[index]),
+          onActivated: (_) => onDetails(),
+          covers: [
+            for (final cover in titles)
+              Stack(
+                fit: StackFit.expand,
+                children: [
+                  VideoArtwork(video: library.next(cover), library: library),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        stops: [0, .5, 1],
+                        colors: [
+                          Color(0x330B0E16),
+                          Colors.transparent,
+                          Color(0xDD0B0E16),
+                        ],
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    top: 12,
+                    left: 12,
+                    child: chip(
+                      cover.isSeries
+                          ? 'TV SERIES'
+                          : cover.first.file.displayName
+                                .split('.')
+                                .last
+                                .toUpperCase(),
+                    ),
+                  ),
+                  Positioned(
+                    left: 18,
+                    right: 18,
+                    bottom: 18,
+                    child: Text(
+                      cover.name,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'Sora',
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          stops: const [0, .015, .035, .08, .97, 1],
+                          colors: [
+                            Colors.white.withValues(alpha: .20),
+                            Colors.black.withValues(alpha: .32),
+                            Colors.white.withValues(alpha: .08),
+                            Colors.transparent,
+                            Colors.transparent,
+                            Colors.black.withValues(alpha: .30),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 760),
+          child: Column(
+            children: [
+              FutureBuilder<MediaProbeResult?>(
+                key: ValueKey(video.id),
+                future: library.metadata(video),
+                builder: (context, snapshot) {
+                  final metadata = snapshot.data;
+                  return Wrap(
+                    alignment: WrapAlignment.center,
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      if (video.year != null) chip('${video.year}'),
+                      chip(
+                        title.isSeries
+                            ? '${title.seasons.length} Seasons · '
+                                  '${title.episodeCount} Episodes'
+                            : 'Movie · ${fileSize(title.sizeBytes)}',
+                      ),
+                      if (metadata?.duration != null)
+                        chip(durationText(metadata!.duration)),
+                      if (metadata?.audioCodecSummary != null)
+                        chip(metadata!.audioCodecSummary!),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+              Text(
+                title.name,
+                key: const Key('jukebox-title'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontFamily: 'Sora',
+                  fontSize: MediaQuery.sizeOf(context).width < 600 ? 26 : 34,
+                  height: 1.2,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -.8,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                title.overview?.isNotEmpty == true
+                    ? title.overview!
+                    : video.file.relativePath,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Color(0xFFAA8982), height: 1.6),
+              ),
+              const SizedBox(height: 20),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 10,
+                runSpacing: 10,
+                children: [
+                  FilledButton.icon(
+                    key: const Key('jukebox-play'),
+                    onPressed: onPlay,
+                    style: FilledButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 26,
+                        vertical: 18,
+                      ),
+                    ),
+                    icon: const Icon(Icons.play_arrow),
+                    label: Text(
+                      resume
+                          ? 'Resume'
+                          : title.isSeries
+                          ? 'Play Episode'
+                          : 'Play Movie',
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    key: const Key('jukebox-details'),
+                    onPressed: onDetails,
+                    style: OutlinedButton.styleFrom(
+                      shape: const StadiumBorder(),
+                      backgroundColor: panel,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 22,
+                        vertical: 18,
+                      ),
+                    ),
+                    icon: const Icon(Icons.graphic_eq),
+                    label: const Text('Details & Audio'),
+                  ),
+                  IconButton.filledTonal(
+                    key: const Key('jukebox-watchlist'),
+                    onPressed: () => library.toggleSaved(title.id),
+                    tooltip: library.isSaved(title)
+                        ? 'Remove from watchlist'
+                        : 'Add to watchlist',
+                    icon: Icon(
+                      library.isSaved(title)
+                          ? Icons.bookmark
+                          : Icons.bookmark_border,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class CinemaHero extends StatelessWidget {

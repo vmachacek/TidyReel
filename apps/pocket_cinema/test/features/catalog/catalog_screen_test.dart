@@ -78,7 +78,11 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).first, const Offset(0, -600));
+    await tester.scrollUntilVisible(
+      find.byType(PosterCard).hitTestable(),
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.byType(PosterCard));
     await tester.pumpAndSettle();

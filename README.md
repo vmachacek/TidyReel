@@ -65,6 +65,28 @@ C:\dev\sdks\flutter-3.47.3\flutter\bin\flutter.bat run
 Pop-Location
 ```
 
+To build an APK and move it into your local Google Drive folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\build-apk.ps1
+```
+
+The script builds a release APK and saves it with a timestamped filename in
+`$env:USERPROFILE\My Drive\Pocket Cinema\APKs`. Google Drive for desktop syncs
+the file from there. To choose another local destination or build a debug APK:
+
+```powershell
+.\tool\build-apk.ps1 -DestinationDirectory "$env:USERPROFILE\My Drive\APKs" -BuildMode Debug
+```
+
+Run the script from the repository root, or use its full path from any folder.
+Use `-FlutterPath` to override the pinned Flutter executable. Release APKs
+currently use the app's debug signing key for personal installation.
+
+Build logs are saved in `apps/pocket_cinema/build/apk-script/`. If a release
+build hits a stale `integration_test` entry in the generated Android plugin
+registrant, the script automatically retries once to regenerate release tooling.
+
 The main application manifest requests Internet access for optional TMDB
 metadata. It does not request all-files, broad storage, or media collection
 permissions. Choose a folder in the system picker; only that persisted read

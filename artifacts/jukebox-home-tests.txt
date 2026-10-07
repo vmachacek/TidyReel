@@ -1,0 +1,136 @@
+00:00 +0: loading C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart
+00:00 +0: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: real listing creates show, season, episode hierarchy with library prefix true
+00:00 +1: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Groups episode filenames across seasons and keeps movies separate
+00:00 +2: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: real listing creates show, season, episode hierarchy with library prefix false
+00:00 +3: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: real listing creates show, season, episode hierarchy with library prefix false
+00:00 +4: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: real listing creates show, season, episode hierarchy with library prefix false
+00:00 +5: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: real listing creates show, season, episode hierarchy with library prefix false
+00:00 +6: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Keeps a show together when release folders and filename prefixes vary
+00:00 +7: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: localized release folders keep the local series and episode spelling
+00:00 +8: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Groups the real SpongeBob season releases under root "TV Shows/"
+00:00 +9: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: different translated title names await alias evidence
+00:00 +10: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Groups the real SpongeBob season releases under root ""
+00:00 +11: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: suffix labels distinguish local segments at the same episode number
+00:00 +12: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Uses the show folder above nested episode release folders
+00:00 +13: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: nonconsecutive files count their references instead of an inclusive range
+00:00 +14: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: unknown episodes remain visible under their season after known episodes
+00:00 +15: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_library_test.dart: Keeps different show years and unnumbered movies separate
+00:00 +16: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_hierarchy_test.dart: movies sharing a title with different release years remain separate
+00:00 +17: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: matches the title and decorates unnamed numbered episodes
+00:00 +18: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: conflicting episode names and segment letters retain local names
+00:00 +19: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: title-only files resolve only a unique exact name in their season
+00:00 +20: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: same canonical series merges aliases while remakes remain separate
+00:00 +21: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: cached matches restore offline including manually confirmed choices
+00:00 +22: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: new seasons are fetched on a later scan without re-searching a title
+00:00 +23: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: network failures retain every playable local file and retry is explicit
+00:00 +24: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: manual selection made during a search cannot be overwritten
+00:00 +25: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: use local names during a pending request remains authoritative on retry
+00:00 +26: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: disabling the source ignores its late response
+00:00 +27: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: concurrent manual selections both receive season metadata
+00:00 +28: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: bare episode files stay separate until their show is identified
+00:00 +29: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: manually identifying an orphan permits safe episode enrichment
+00:00 +30: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: title-only resolution retains independent special ambiguity warnings
+00:00 +31: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_matching_test.dart: rejects semantically invalid cached records
+00:00 +32: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Watchlist aliases survive canonical names, local names, correction and restart
+00:00 +33: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Watchlist aliases survive canonical names, local names, correction and restart
+00:00 +34: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Watchlist aliases survive canonical names, local names, correction and restart
+00:00 +35: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Watchlist aliases survive canonical names, local names, correction and restart
+00:00 +36: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_test.dart: Rejects remake ambiguity but an exact year can resolve it
+00:00 +37: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Manual title and episode cache restore without contacting a source
+00:00 +38: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Manual title and episode cache restore without contacting a source
+00:00 +39: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Manual title and episode cache restore without contacting a source
+00:00 +40: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: Use local names persists through restart and background retries
+00:00 +41: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: The token uses its dedicated native method and never ordinary preferences
+00:00 +42: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_preferences_test.dart: An invalid token is rejected before storage and preserves the current source
+00:01 +43: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:02 +44: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:02 +45: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:02 +46: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:02 +47: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:02 +48: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +49: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +50: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +51: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +52: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +53: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +54: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +55: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +56: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +57: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:03 +58: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:04 +59: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:04 +60: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:04 +61: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:04 +62: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: mobile library settings expose token control and official credits
+00:04 +63: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:04 +64: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:04 +65: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +66: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +67: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +68: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +69: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +70: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +71: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +72: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +73: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:05 +74: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +75: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +76: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +77: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +78: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +79: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +80: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +81: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +82: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +83: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +84: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +85: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +86: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +87: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +88: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +89: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +90: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +91: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +92: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +93: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +94: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +95: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +96: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +97: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +98: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +99: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +100: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +101: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +102: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +103: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +104: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +105: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +106: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +107: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +108: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:06 +109: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +110: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +111: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +112: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +113: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +114: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +115: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +116: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +117: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +118: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +119: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +120: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +121: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +122: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +123: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +124: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +125: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +126: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +127: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +128: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +129: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: title, watchlist, details and play follow carousel selection
+00:07 +130: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: review action opens local matching guidance with cached match false
+00:07 +131: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/catalog_metadata_ui_test.dart: review action opens local matching guidance with cached match false
+00:07 +132: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: sorting and filters retain or replace the selected title safely
+00:08 +133: C:/dev/TidyReel/apps/pocket_cinema/test/features/catalog/jukebox_home_test.dart: sorting and filters retain or replace the selected title safely
+00:08 +134: All tests passed!

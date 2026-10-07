@@ -4,8 +4,10 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.result.contract.ActivityResultContracts
 import com.tidyreel.local_media_hub.platform.AndroidRootPermissionStore
+import com.tidyreel.local_media_hub.platform.AndroidProbeBackend
 import com.tidyreel.local_media_hub.platform.AuthorizedRootMessage
 import com.tidyreel.local_media_hub.platform.FlutterError
+import com.tidyreel.local_media_hub.platform.MediaProbeService
 import com.tidyreel.local_media_hub.platform.ScanSessionRegistry
 import com.tidyreel.local_media_hub.platform.SmallFileReader
 import com.tidyreel.local_media_hub.platform.STORAGE_SCAN_EVENT_CHANNEL
@@ -81,6 +83,9 @@ class MainActivity : FlutterFragmentActivity() {
                 scanSessionRegistry = scanSessionRegistry,
                 scanEventHandler = scanEventHandler,
                 smallFileReader = smallFileReader,
+                mediaProbeService = MediaProbeService {
+                    AndroidProbeBackend(contentResolver)
+                },
             ),
         )
     }

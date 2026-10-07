@@ -11,6 +11,7 @@ class StorageHostApiImpl(
     private val scanSessionRegistry: ScanSessionRegistry,
     private val scanEventHandler: StorageScanEventHandler,
     private val smallFileReader: SmallFileReader,
+    private val mediaProbeService: MediaProbeService,
 ) : StorageHostApi {
     override suspend fun chooseDirectory(): AuthorizedRootMessage =
         chooseDirectoryAction()
@@ -81,7 +82,11 @@ class StorageHostApiImpl(
     override fun probeFile(
         treeUri: String,
         storageKey: String,
-    ): ProbeResultMessage = notImplemented("probeFile")
+    ): ProbeResultMessage = try {
+        mediaProbeService.probe(documentUri(treeUri, storageKey))
+    } catch (error: ProbeException) {
+        throw FlutterError(code = error.code, message = error.message)
+    }
 
     private fun documentUri(treeUri: String, storageKey: String): String {
         val tree = Uri.parse(treeUri)

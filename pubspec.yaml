@@ -1,0 +1,11 @@
+name: tidy_reel_workspace
+publish_to: none
+
+environment:
+  sdk: '>=3.12.0 <4.0.0'
+
+workspace:
+  - apps/local_media_hub
+  - packages/media_domain
+  - packages/media_platform_storage
+  - packages/media_playback

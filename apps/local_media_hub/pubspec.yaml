@@ -11,6 +11,9 @@ dependencies:
   flutter:
     sdk: flutter
   media_domain: ^1.0.0
+  media_kit: ^1.2.6
+  media_kit_libs_video: ^1.0.7
+  media_kit_video: ^2.0.1
   media_platform_storage: ^1.0.0
   media_playback: ^1.0.0
   meta: ^1.19.0

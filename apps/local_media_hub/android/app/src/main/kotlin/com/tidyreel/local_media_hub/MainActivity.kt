@@ -8,6 +8,7 @@ import com.tidyreel.local_media_hub.platform.AndroidProbeBackend
 import com.tidyreel.local_media_hub.platform.AuthorizedRootMessage
 import com.tidyreel.local_media_hub.platform.FlutterError
 import com.tidyreel.local_media_hub.platform.MediaProbeService
+import com.tidyreel.local_media_hub.platform.PlaybackLeaseRegistry
 import com.tidyreel.local_media_hub.platform.ScanSessionRegistry
 import com.tidyreel.local_media_hub.platform.SmallFileReader
 import com.tidyreel.local_media_hub.platform.STORAGE_SCAN_EVENT_CHANNEL
@@ -26,6 +27,7 @@ class MainActivity : FlutterFragmentActivity() {
     private lateinit var scanSessionRegistry: ScanSessionRegistry
     private lateinit var scanEventHandler: StorageScanEventHandler
     private lateinit var scanEventChannel: EventChannel
+    private lateinit var playbackLeaseRegistry: PlaybackLeaseRegistry
     private var pendingDirectoryChoice:
         CancellableContinuation<AuthorizedRootMessage>? = null
 
@@ -63,6 +65,7 @@ class MainActivity : FlutterFragmentActivity() {
         super.configureFlutterEngine(flutterEngine)
         rootPermissionStore = AndroidRootPermissionStore(contentResolver)
         scanSessionRegistry = ScanSessionRegistry()
+        playbackLeaseRegistry = PlaybackLeaseRegistry()
         scanEventHandler = StorageScanEventHandler()
         scanEventChannel = EventChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -86,6 +89,7 @@ class MainActivity : FlutterFragmentActivity() {
                 mediaProbeService = MediaProbeService {
                     AndroidProbeBackend(contentResolver)
                 },
+                playbackLeaseRegistry = playbackLeaseRegistry,
             ),
         )
     }
@@ -93,6 +97,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         StorageHostApi.setUp(flutterEngine.dartExecutor.binaryMessenger, null)
         scanSessionRegistry.close()
+        playbackLeaseRegistry.closeAll()
         scanEventHandler.endOfStream()
         scanEventChannel.setStreamHandler(null)
         pendingDirectoryChoice?.cancel()

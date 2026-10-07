@@ -12,6 +12,7 @@ class StorageHostApiImpl(
     private val scanEventHandler: StorageScanEventHandler,
     private val smallFileReader: SmallFileReader,
     private val mediaProbeService: MediaProbeService,
+    private val playbackLeaseRegistry: PlaybackLeaseRegistry,
 ) : StorageHostApi {
     override suspend fun chooseDirectory(): AuthorizedRootMessage =
         chooseDirectoryAction()
@@ -74,10 +75,19 @@ class StorageHostApiImpl(
         treeUri: String,
         storageKey: String,
         strategy: String,
-    ): PlaybackLeaseMessage = notImplemented("openPlaybackSource")
+    ): PlaybackLeaseMessage {
+        if (strategy != "directContentUri") {
+            throw FlutterError(
+                code = "PLAYBACK_STRATEGY_UNAVAILABLE",
+                message = "The requested playback source strategy is unavailable.",
+            )
+        }
+        return playbackLeaseRegistry.openDirect(documentUri(treeUri, storageKey))
+    }
 
-    override fun closePlaybackSource(leaseId: String) =
-        notImplemented("closePlaybackSource")
+    override fun closePlaybackSource(leaseId: String) {
+        playbackLeaseRegistry.close(leaseId)
+    }
 
     override fun probeFile(
         treeUri: String,

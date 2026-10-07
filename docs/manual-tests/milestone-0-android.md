@@ -81,8 +81,8 @@ Automated and packaging evidence for the same source revision:
 - repository formatter: 50 Dart files checked, zero changes;
 - typed bridge regeneration: generated Dart and Kotlin output unchanged;
 - analyzers: zero issues in all three packages and the Flutter app;
-- Dart packages: 3 domain and 5 storage tests passed; the playback contract
-  package has no standalone tests, with adapter behavior covered in the app;
+- Dart packages: 3 domain, 5 storage, and 3 playback-contract tests passed;
+  concrete adapter behavior is additionally covered in the app;
 - Flutter app: 20 unit/widget tests passed;
 - Flutter device integration: 1 fake end-to-end flow passed on the SM-T500;
 - Android/Kotlin: 10 tests passed with zero failures, errors, or skips;

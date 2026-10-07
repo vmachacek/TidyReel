@@ -61,4 +61,3 @@ and avoid broad storage permission.
 - [Milestone 0 Android device validation](../manual-tests/milestone-0-android.md)
 - [Android Storage Access Framework](https://developer.android.com/guide/topics/providers/document-provider)
 - [Milestone 0 risk-spike design](../superpowers/specs/2026-10-07-milestone-0-android-risk-spike-design.md)
-

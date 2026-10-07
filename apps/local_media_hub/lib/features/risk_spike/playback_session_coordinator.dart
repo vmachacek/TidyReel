@@ -4,7 +4,28 @@ import 'package:media_domain/media_domain.dart';
 import 'package:media_platform_storage/media_platform_storage.dart';
 import 'package:media_playback/media_playback.dart';
 
-final class PlaybackSessionCoordinator {
+abstract interface class PlaybackSession {
+  PlaybackSnapshot get snapshot;
+
+  Future<AppResult<void>> attachLease(MediaSourceLease lease);
+
+  Future<AppResult<void>> attachSubtitle(
+    Uint8List bytes, {
+    String? languageTag,
+  });
+
+  Future<AppResult<void>> play();
+
+  Future<AppResult<void>> pause();
+
+  Future<AppResult<void>> seek(Duration position);
+
+  Future<void> handleLifecycleInactive();
+
+  Future<void> stop();
+}
+
+final class PlaybackSessionCoordinator implements PlaybackSession {
   PlaybackSessionCoordinator({
     required this.engineFactory,
     required this.storage,
@@ -18,9 +39,13 @@ final class PlaybackSessionCoordinator {
   PlaybackEngine? _engine;
   MediaSourceLease? _lease;
 
+  PlaybackEngine? get activeEngine => _engine;
+
+  @override
   PlaybackSnapshot get snapshot =>
       _engine?.current ?? const PlaybackSnapshot.closed();
 
+  @override
   Future<AppResult<void>> attachLease(MediaSourceLease lease) async {
     await stop();
 
@@ -68,6 +93,7 @@ final class PlaybackSessionCoordinator {
     }
   }
 
+  @override
   Future<AppResult<void>> attachSubtitle(
     Uint8List bytes, {
     String? languageTag,
@@ -95,8 +121,20 @@ final class PlaybackSessionCoordinator {
     return engine.attachSubtitleData(bytes, languageTag: languageTag);
   }
 
+  @override
+  Future<AppResult<void>> play() => _runControl((engine) => engine.play());
+
+  @override
+  Future<AppResult<void>> pause() => _runControl((engine) => engine.pause());
+
+  @override
+  Future<AppResult<void>> seek(Duration position) =>
+      _runControl((engine) => engine.seek(position));
+
+  @override
   Future<void> handleLifecycleInactive() => stop();
 
+  @override
   Future<void> stop() async {
     final engine = _engine;
     final lease = _lease;
@@ -119,5 +157,23 @@ final class PlaybackSessionCoordinator {
         await storage.releasePlaybackSource(lease);
       }
     }
+  }
+
+  Future<AppResult<void>> _runControl(
+    Future<AppResult<void>> Function(PlaybackEngine engine) action,
+  ) {
+    final engine = _engine;
+    if (engine == null) {
+      return Future<AppResult<void>>.value(
+        const FailureResult<void>(
+          AppFailure(
+            code: 'PLAYBACK_NOT_OPEN',
+            messageKey: 'playbackNotOpen',
+            retryable: true,
+          ),
+        ),
+      );
+    }
+    return action(engine);
   }
 }

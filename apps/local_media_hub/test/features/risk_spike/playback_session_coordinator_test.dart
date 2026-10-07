@@ -103,6 +103,21 @@ void main() {
     expect(coordinator.snapshot.isOpen, isTrue);
     expect(engine.subtitleCalls, 0);
   });
+
+  test('playback controls delegate to the active engine', () async {
+    final engine = FakePlaybackEngine();
+    final coordinator = PlaybackSessionCoordinator(
+      engineFactory: FakePlaybackEngineFactory([engine]),
+      storage: FakeStorageGateway(),
+    );
+    await coordinator.attachLease(directLease);
+
+    await coordinator.pause();
+    await coordinator.play();
+    await coordinator.seek(const Duration(seconds: 12));
+
+    expect(engine.controlCalls, ['pause', 'play', 'seek:12000']);
+  });
 }
 
 final class FakePlaybackEngine implements PlaybackEngine {
@@ -113,6 +128,7 @@ final class FakePlaybackEngine implements PlaybackEngine {
   PlaybackSnapshot _current = const PlaybackSnapshot.closed();
   int stopCalls = 0;
   int subtitleCalls = 0;
+  final List<String> controlCalls = <String>[];
 
   @override
   PlaybackSnapshot get current => _current;
@@ -152,16 +168,25 @@ final class FakePlaybackEngine implements PlaybackEngine {
   Future<void> dispose() async => onDispose?.call();
 
   @override
-  Future<AppResult<void>> pause() =>
-      throw StateError('Unexpected test call: pause');
+  Future<AppResult<void>> pause() async {
+    controlCalls.add('pause');
+    _current = _current.copyWith(isPlaying: false);
+    return const Success<void>(null);
+  }
 
   @override
-  Future<AppResult<void>> play() =>
-      throw StateError('Unexpected test call: play');
+  Future<AppResult<void>> play() async {
+    controlCalls.add('play');
+    _current = _current.copyWith(isPlaying: true);
+    return const Success<void>(null);
+  }
 
   @override
-  Future<AppResult<void>> seek(Duration position) =>
-      throw StateError('Unexpected test call: seek');
+  Future<AppResult<void>> seek(Duration position) async {
+    controlCalls.add('seek:${position.inMilliseconds}');
+    _current = _current.copyWith(position: position);
+    return const Success<void>(null);
+  }
 }
 
 final class FakePlaybackEngineFactory implements PlaybackEngineFactory {

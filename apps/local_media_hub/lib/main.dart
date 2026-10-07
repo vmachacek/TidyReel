@@ -1,12 +1,33 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:media_kit/media_kit.dart';
+
+import 'app/local_media_hub_app.dart';
+import 'features/risk_spike/playback_session_coordinator.dart';
+import 'features/risk_spike/risk_spike_controller.dart';
+import 'infrastructure/android/android_media_probe.dart';
+import 'infrastructure/android/android_storage_gateway.dart';
+import 'infrastructure/android/pigeon_storage_platform_api.dart';
+import 'infrastructure/playback/media_kit_playback_engine_factory.dart';
+import 'infrastructure/playback/media_kit_playback_surface.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
+  final platformApi = PigeonStoragePlatformApi();
+  final storage = AndroidStorageGateway(api: platformApi);
+  final playback = PlaybackSessionCoordinator(
+    engineFactory: const MediaKitPlaybackEngineFactory(),
+    storage: storage,
+  );
+  final controller = RiskSpikeController(
+    storage: storage,
+    probe: AndroidMediaProbe(platformApi),
+    playback: playback,
+  );
   runApp(
-    const MaterialApp(
-      home: Scaffold(body: Center(child: Text('Local Media Hub setup'))),
+    LocalMediaHubApp(
+      controller: controller,
+      playbackSurface: MediaKitPlaybackSurface(session: playback),
     ),
   );
 }

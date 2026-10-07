@@ -13,11 +13,13 @@ dependencies:
   media_domain: ^1.0.0
   media_platform_storage: ^1.0.0
   media_playback: ^1.0.0
+  meta: ^1.19.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  pigeon: ^29.0.7
 
 flutter:
   uses-material-design: true

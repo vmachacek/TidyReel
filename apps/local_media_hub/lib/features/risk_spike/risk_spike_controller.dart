@@ -103,7 +103,17 @@ final class RiskSpikeController extends ChangeNotifier {
     switch (result) {
       case Success<void>():
         _subtitleEntries.clear();
-        _emit(const RiskSpikeState(phase: RiskSpikePhase.noRoot));
+        _emit(
+          RiskSpikeState(
+            phase: RiskSpikePhase.failure,
+            root: root,
+            failure: const AppFailure(
+              code: 'STORAGE_PERMISSION_REVOKED',
+              messageKey: 'rootPermissionRevoked',
+              retryable: true,
+            ),
+          ),
+        );
       case FailureResult<void>(:final failure):
         _fail(failure);
     }

@@ -135,6 +135,26 @@ void main() {
     expect(controller.state.subtitleWarning?.code, 'SMALL_FILE_LIMIT_EXCEEDED');
     expect(playback.openCount, 1);
   });
+
+  test('releasing test access offers the folder repair action', () async {
+    final storage = FakeStorageGateway(releaseRootSucceeds: true);
+    final playback = FakePlaybackSession(allowStop: true);
+    final controller = RiskSpikeController(
+      storage: storage,
+      probe: FakeMediaProbe(),
+      playback: playback,
+      initialState: const RiskSpikeState(
+        phase: RiskSpikePhase.ready,
+        root: root,
+      ),
+    );
+
+    await controller.releaseRoot();
+
+    expect(controller.state.failure?.code, 'STORAGE_PERMISSION_REVOKED');
+    expect(controller.state.canRepairRoot, isTrue);
+    expect(playback.stopCount, 1);
+  });
 }
 
 final class FakeStorageGateway implements LibraryStorageGateway {
@@ -143,6 +163,7 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     this.openFailure,
     this.subtitleReadFailure,
     this.lease,
+    this.releaseRootSucceeds = false,
   });
 
   factory FakeStorageGateway.scan(List<StorageScanEvent> events) =>
@@ -152,6 +173,7 @@ final class FakeStorageGateway implements LibraryStorageGateway {
   final AppFailure? openFailure;
   final AppFailure? subtitleReadFailure;
   final MediaSourceLease? lease;
+  final bool releaseRootSucceeds;
   int activeLeaseCount = 0;
 
   @override
@@ -214,8 +236,12 @@ final class FakeStorageGateway implements LibraryStorageGateway {
       throw StateError('Unexpected test call: listPersistedRoots');
 
   @override
-  Future<AppResult<void>> releaseRootPermission(LibraryRootLocator root) =>
-      throw StateError('Unexpected test call: releaseRootPermission');
+  Future<AppResult<void>> releaseRootPermission(LibraryRootLocator root) async {
+    if (releaseRootSucceeds) {
+      return const Success<void>(null);
+    }
+    throw StateError('Unexpected test call: releaseRootPermission');
+  }
 }
 
 final class FakeMediaProbe implements MediaProbe {
@@ -228,8 +254,12 @@ final class FakeMediaProbe implements MediaProbe {
 }
 
 final class FakePlaybackSession implements PlaybackSession {
+  FakePlaybackSession({this.allowStop = false});
+
+  final bool allowStop;
   PlaybackSnapshot _snapshot = const PlaybackSnapshot.closed();
   int openCount = 0;
+  int stopCount = 0;
 
   @override
   PlaybackSnapshot get snapshot => _snapshot;
@@ -264,5 +294,11 @@ final class FakePlaybackSession implements PlaybackSession {
       throw StateError('Unexpected test call: seek');
 
   @override
-  Future<void> stop() => throw StateError('Unexpected test call: stop');
+  Future<void> stop() async {
+    if (!allowStop) {
+      throw StateError('Unexpected test call: stop');
+    }
+    stopCount++;
+    _snapshot = const PlaybackSnapshot.closed();
+  }
 }

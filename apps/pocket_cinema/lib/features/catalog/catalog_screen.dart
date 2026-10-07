@@ -241,6 +241,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 a.modified ?? DateTime(1970),
               ),
       );
+      final bookmarked = visible.where(library.isSaved).toList();
+      final carouselTitles = [
+        ...bookmarked,
+        ...visible.where((t) => !library.isSaved(t)),
+      ];
       final movies = visible.where((t) => !t.isSeries).toList();
       final shows = visible.where((t) => t.isSeries).toList();
       final continuing = visible
@@ -253,10 +258,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
       final retainedSpotlight = visible.where((t) => t.id == featuredTitleId);
       final spotlight = retainedSpotlight.isNotEmpty
           ? retainedSpotlight.first
+          : bookmarked.isNotEmpty
+          ? bookmarked.first
           : continuing.isNotEmpty
           ? continuing.first
-          : visible.isNotEmpty
-          ? visible.first
+          : carouselTitles.isNotEmpty
+          ? carouselTitles.first
           : null;
       return Scaffold(
         appBar: AppBar(
@@ -368,7 +375,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 ],
                 if (spotlight != null && query.isEmpty && destination == 0) ...[
                   JukeboxHero(
-                    titles: visible,
+                    titles: carouselTitles,
                     selectedTitle: spotlight,
                     library: library,
                     onSelected: (title) =>

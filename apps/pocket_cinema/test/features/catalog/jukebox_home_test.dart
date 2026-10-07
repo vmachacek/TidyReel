@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:media_platform_storage/media_platform_storage.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 import 'package:pocket_cinema/features/catalog/cinema_player.dart';
@@ -49,7 +50,158 @@ Future<void> _tablet(WidgetTester tester) async {
 String _selectedTitle(WidgetTester tester) =>
     tester.widget<Text>(find.byKey(const Key('jukebox-title'))).data!;
 
+List<String> _titleOrder(WidgetTester tester) => tester
+    .widget<JukeboxHero>(find.byType(JukeboxHero))
+    .titles
+    .map((title) => title.name)
+    .toList();
+
+StorageEntrySnapshot _modifiedFile(String path, int day) {
+  final file = files.file(path);
+  return StorageEntrySnapshot(
+    storageKey: file.storageKey,
+    parentStorageKey: file.parentStorageKey,
+    relativePath: file.relativePath,
+    displayName: file.displayName,
+    isDirectory: file.isDirectory,
+    mimeType: file.mimeType,
+    sizeBytes: file.sizeBytes,
+    modifiedAtUtc: DateTime.utc(2026, 1, day),
+    flags: file.flags,
+  );
+}
+
 void main() {
+  testWidgets(
+    'bookmarked movies and shows lead both sorts and filtered carousels',
+    (tester) async {
+      await _tablet(tester);
+      final alpha = _modifiedFile('Movies/Alpha (2016).mp4', 2);
+      final beta = _modifiedFile('Shows/Beta.Show.S01E01.Start.mp4', 1);
+      final gamma = _modifiedFile('Shows/Gamma.Show.S01E01.Start.mp4', 4);
+      final zulu = _modifiedFile('Movies/Zulu (2020).mp4', 3);
+      final entries = [alpha, beta, gamma, zulu];
+      final betaTitle = groupCatalog(entries)
+          .singleWhere((title) => title.name == 'Beta Show');
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+            if (call.method == 'loadPreferences') {
+              return jsonEncode({
+                'saved': [zulu.storageKey, betaTitle.id],
+                'positions': {gamma.storageKey: 40},
+                'durations': {gamma.storageKey: 120},
+              });
+            }
+            return null;
+          });
+      await tester.pumpWidget(
+        _app(
+          fixtures.filesAvailableState.copyWith(entries: entries),
+          _Routes(),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(_titleOrder(tester), ['Zulu', 'Beta Show', 'Gamma Show', 'Alpha']);
+      expect(_selectedTitle(tester), 'Zulu');
+      expect(find.text('1 / 4'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('jukebox-next')));
+      await tester.pumpAndSettle();
+      expect(_selectedTitle(tester), 'Beta Show');
+
+      await tester.ensureVisible(find.text('A–Z'));
+      await tester.tap(find.text('A–Z'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(const Key('jukebox-title')),
+        -250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      expect(_titleOrder(tester), ['Beta Show', 'Zulu', 'Alpha', 'Gamma Show']);
+      expect(_selectedTitle(tester), 'Beta Show');
+      expect(find.text('1 / 4'), findsOneWidget);
+
+      await tester.scrollUntilVisible(
+        find.text('Movies').hitTestable(),
+        -250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Movies'));
+      await tester.pumpAndSettle();
+      expect(_titleOrder(tester), ['Zulu', 'Alpha']);
+      expect(_selectedTitle(tester), 'Zulu');
+      expect(find.text('1 / 2'), findsOneWidget);
+      await tester.tap(find.text('TV Shows'));
+      await tester.pumpAndSettle();
+      expect(_titleOrder(tester), ['Beta Show', 'Gamma Show']);
+      expect(_selectedTitle(tester), 'Beta Show');
+      await tester.tap(find.text('Watchlist'));
+      await tester.pumpAndSettle();
+      expect(_titleOrder(tester), ['Beta Show', 'Zulu']);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('delayed bookmarks move saved shows to the start', (
+    tester,
+  ) async {
+    await _tablet(tester);
+    final preferences = Completer<String>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+          if (call.method == 'loadPreferences') return preferences.future;
+          return null;
+        });
+    final unsaved = files.file('Movies/Zulu (2020).mp4');
+    final show = files.file('Shows/My.Show.S01E01.Start.mp4');
+    final entries = [unsaved, show];
+    final savedTitle = groupCatalog(entries)
+        .singleWhere((title) => title.isSeries);
+    await tester.pumpWidget(
+      _app(fixtures.filesAvailableState.copyWith(entries: entries), _Routes()),
+    );
+    await tester.pumpAndSettle();
+    expect(_selectedTitle(tester), 'Zulu');
+
+    preferences.complete(
+      jsonEncode({
+        'saved': [savedTitle.id],
+        'positions': {unsaved.storageKey: 40},
+        'durations': {unsaved.storageKey: 120},
+      }),
+    );
+    await tester.pumpAndSettle();
+    expect(_titleOrder(tester), ['My Show', 'Zulu']);
+    expect(_selectedTitle(tester), 'My Show');
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(
+      tester.widget<PageView>(find.byType(PageView)).controller!.page,
+      closeTo(0, .001),
+    );
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('jukebox-watchlist')))
+          .tooltip,
+      'Remove from watchlist',
+    );
+    expect(
+      find.descendant(
+        of: find.byKey(const Key('jukebox-play')),
+        matching: find.text('Play Episode'),
+      ),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const Key('jukebox-stage')));
+    await tester.pumpAndSettle();
+    expect(
+      tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.id,
+      savedTitle.id,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('delayed resume preferences align the cover, title and actions', (
     tester,
   ) async {
@@ -206,6 +358,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(selectedHero.library.isSaved(selected), isTrue);
     expect(selectedHero.library.isSaved(firstTitle), isFalse);
+    expect(_titleOrder(tester), ['Alpha', 'Zulu']);
+    expect(_selectedTitle(tester), 'Alpha');
+    expect(find.text('1 / 2'), findsOneWidget);
+    expect(
+      tester.widget<PageView>(find.byType(PageView)).controller!.page,
+      closeTo(0, .001),
+    );
 
     await tester.tap(find.byKey(const Key('jukebox-details')));
     await tester.pumpAndSettle();
@@ -216,6 +375,23 @@ void main() {
     Navigator.of(tester.element(find.byType(CatalogDetail))).pop();
     await tester.pumpAndSettle();
     expect(_selectedTitle(tester), 'Alpha');
+
+    await tester.tap(find.byKey(const Key('jukebox-watchlist')));
+    await tester.pumpAndSettle();
+    expect(selectedHero.library.isSaved(selected), isFalse);
+    expect(_titleOrder(tester), ['Zulu', 'Alpha']);
+    expect(_selectedTitle(tester), 'Alpha');
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(
+      tester.widget<PageView>(find.byType(PageView)).controller!.page,
+      closeTo(1, .001),
+    );
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const Key('jukebox-watchlist')))
+          .tooltip,
+      'Add to watchlist',
+    );
 
     final playContext = tester.element(find.byKey(const Key('jukebox-play')));
     await tester.tap(find.byKey(const Key('jukebox-play')));

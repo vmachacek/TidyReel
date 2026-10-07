@@ -7,6 +7,7 @@ Recorded on 2026-10-07 for Milestone 0.
 - Windows 11 25H2.
 - Android SDK 36.0.0 with platform and build-tools 36.0.0.
 - Android Studio bundled JDK 17.0.6.
+- Direct Gradle verification uses Microsoft OpenJDK 17.0.19 because the host `JAVA_HOME` still points at JDK 11 even though `java` on `PATH` is JDK 17.
 - Primary device: Samsung SM-T500, Android 12 / API 31, `android-arm64`, ADB serial `R9TR30ABDQJ`.
 - Flutter detected the tablet as a connected Android device.
 

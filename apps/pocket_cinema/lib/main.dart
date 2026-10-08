@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:media_kit/media_kit.dart';
 
 import 'app/pocket_cinema_app.dart';
+import 'features/kill_switch/kill_switch_controller.dart';
 import 'features/risk_spike/playback_session_coordinator.dart';
 import 'features/risk_spike/risk_spike_controller.dart';
 import 'infrastructure/android/android_media_probe.dart';
@@ -29,6 +30,7 @@ Future<void> main() async {
   runApp(
     PocketCinemaApp(
       controller: controller,
+      killSwitch: KillSwitchController(),
       playbackSurface: MediaKitPlaybackSurface(session: playback),
     ),
   );

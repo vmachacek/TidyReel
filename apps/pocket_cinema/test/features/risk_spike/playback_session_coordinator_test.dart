@@ -21,6 +21,97 @@ const subtitleFailure = AppFailure(
 );
 
 void main() {
+  test('an attached source opens without autoplay while blocked', () async {
+    final engine = FakePlaybackEngine(
+      openedSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+    );
+    final storage = FakeStorageGateway();
+    final coordinator = PlaybackSessionCoordinator(
+      engineFactory: FakePlaybackEngineFactory([engine]),
+      storage: storage,
+    );
+    coordinator.setPlaybackBlocked(true);
+
+    await coordinator.attachLease(
+      directLease,
+      startPosition: const Duration(minutes: 3),
+    );
+
+    expect(engine.request!.autoplay, isFalse);
+    expect(engine.request!.startPosition, const Duration(minutes: 3));
+    expect(coordinator.snapshot.isPlaying, isFalse);
+    expect(coordinator.activeEngine, same(engine));
+    expect(storage.releaseCounts, isEmpty);
+    coordinator.setPlaybackBlocked(false);
+    expect(engine.controlCalls, ['pause']);
+    expect(coordinator.snapshot.isPlaying, isFalse);
+    await coordinator.stop();
+  });
+
+  test(
+    'a block during initialization prevents initial autoplay even when cleared',
+    () async {
+      final initializing = Completer<void>();
+      final engine = FakePlaybackEngine(
+        openedSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+        onInitialize: () => initializing.future,
+      );
+      final coordinator = PlaybackSessionCoordinator(
+        engineFactory: FakePlaybackEngineFactory([engine]),
+        storage: FakeStorageGateway(),
+      );
+      final opening = coordinator.attachLease(directLease);
+      await Future<void>.delayed(Duration.zero);
+      coordinator.setPlaybackBlocked(true);
+      coordinator.setPlaybackBlocked(false);
+      initializing.complete();
+      await opening;
+
+      expect(engine.request!.autoplay, isFalse);
+      expect(coordinator.snapshot.isPlaying, isFalse);
+      await coordinator.stop();
+    },
+  );
+
+  for (final pauseFails in [false, true]) {
+    test(
+      'a block during source open silences completion (pause fails: $pauseFails)',
+      () async {
+        final opened = Completer<void>();
+        final engine = FakePlaybackEngine(
+          openedSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+          onOpen: () => opened.future,
+          pauseFailure: pauseFails ? subtitleFailure : null,
+        );
+        final storage = FakeStorageGateway();
+        final coordinator = PlaybackSessionCoordinator(
+          engineFactory: FakePlaybackEngineFactory([engine]),
+          storage: storage,
+        );
+        final opening = coordinator.attachLease(directLease);
+        await Future<void>.delayed(Duration.zero);
+        expect(engine.request!.autoplay, isTrue);
+        coordinator.setPlaybackBlocked(true);
+        coordinator.setPlaybackBlocked(false);
+        opened.complete();
+        await opening;
+
+        expect(coordinator.snapshot.isPlaying, isFalse);
+        expect(engine.controlCalls, ['pause']);
+        if (pauseFails) {
+          expect(coordinator.activeEngine, isNull);
+          expect(engine.stopCalls, 1);
+          expect(engine.disposeCalls, 1);
+          expect(storage.releaseCounts[directLease.leaseId], 1);
+        } else {
+          expect(coordinator.activeEngine, same(engine));
+          expect(storage.releaseCounts, isEmpty);
+        }
+        await coordinator.stop();
+      },
+    );
+  }
+
   test(
     'Resume position is part of opening the source, without a startup seek',
     () async {
@@ -266,6 +357,8 @@ final class FakePlaybackEngine implements PlaybackEngine {
     this.openedSnapshot = const PlaybackSnapshot(isOpen: true),
     this.onPause,
     this.pauseFailure,
+    this.onInitialize,
+    this.onOpen,
   });
 
   final FutureOr<void> Function()? onDispose;
@@ -273,6 +366,8 @@ final class FakePlaybackEngine implements PlaybackEngine {
   final PlaybackSnapshot openedSnapshot;
   final Future<void> Function()? onPause;
   final AppFailure? pauseFailure;
+  final Future<void> Function()? onInitialize;
+  final Future<void> Function()? onOpen;
   PlaybackSnapshot _current = const PlaybackSnapshot.closed();
   int stopCalls = 0;
   int disposeCalls = 0;
@@ -287,11 +382,15 @@ final class FakePlaybackEngine implements PlaybackEngine {
   Stream<PlaybackEvent> get events => const Stream<PlaybackEvent>.empty();
 
   @override
-  Future<AppResult<void>> initialize() async => const Success<void>(null);
+  Future<AppResult<void>> initialize() async {
+    await onInitialize?.call();
+    return const Success<void>(null);
+  }
 
   @override
   Future<AppResult<void>> open(PlaybackRequest request) async {
     this.request = request;
+    await onOpen?.call();
     _current = openedSnapshot;
     return const Success<void>(null);
   }

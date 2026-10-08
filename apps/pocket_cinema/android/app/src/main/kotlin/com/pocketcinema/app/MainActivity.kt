@@ -1,6 +1,7 @@
 package com.pocketcinema.app
 
 import com.pocketcinema.app.platform.CatalogPlatform
+import com.pocketcinema.app.platform.KillSwitchPlatform
 import com.pocketcinema.app.platform.PlayerControlsPlatform
 import com.pocketcinema.app.platform.RenderingPerformancePlatform
 import android.content.Intent
@@ -26,6 +27,7 @@ import com.pocketcinema.app.platform.StorageScanEventHandler
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
 import java.io.FileNotFoundException
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -69,6 +71,8 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var catalogPlatform: CatalogPlatform? = null
+    private var killSwitchPlatform: KillSwitchPlatform? = null
+    private var pendingBluetoothPermissionResult: MethodChannel.Result? = null
     private var playerControls: PlayerControlsPlatform? = null
     private var renderingPerformance: RenderingPerformancePlatform? = null
     private lateinit var rootPermissionStore: AndroidRootPermissionStore
@@ -78,6 +82,31 @@ class MainActivity : FlutterFragmentActivity() {
     private lateinit var playbackLeaseRegistry: PlaybackLeaseRegistry
     private var pendingDirectoryChoice:
         CancellableContinuation<AuthorizedRootMessage>? = null
+
+    private val bluetoothPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+            val result = pendingBluetoothPermissionResult
+            pendingBluetoothPermissionResult = null
+            result?.success(KillSwitchPlatform.hasPermissions(this))
+        }
+
+    private fun requestBluetoothPermissions(result: MethodChannel.Result) {
+        if (KillSwitchPlatform.hasPermissions(this)) {
+            result.success(true)
+            return
+        }
+        if (pendingBluetoothPermissionResult != null) {
+            result.error("KILL_SWITCH_PERMISSIONS_BUSY", "A Bluetooth permission request is already open.", null)
+            return
+        }
+        pendingBluetoothPermissionResult = result
+        try {
+            bluetoothPermissionLauncher.launch(KillSwitchPlatform.requiredPermissions())
+        } catch (_: Exception) {
+            pendingBluetoothPermissionResult = null
+            result.error("KILL_SWITCH_PERMISSIONS_UNAVAILABLE", "Open the app to allow nearby Bluetooth control.", null)
+        }
+    }
 
     private val directoryPicker =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -112,6 +141,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         catalogPlatform = CatalogPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
+        killSwitchPlatform = KillSwitchPlatform(this, flutterEngine.dartExecutor.binaryMessenger, ::requestBluetoothPermissions)
         playerControls = PlayerControlsPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         renderingPerformance = RenderingPerformancePlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         rootPermissionStore = AndroidRootPermissionStore(contentResolver)
@@ -146,6 +176,10 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        pendingBluetoothPermissionResult?.error("KILL_SWITCH_CLOSED", "Nearby controls closed.", null)
+        pendingBluetoothPermissionResult = null
+        killSwitchPlatform?.close()
+        killSwitchPlatform = null
         playerControls?.close()
         playerControls = null
         renderingPerformance?.close()

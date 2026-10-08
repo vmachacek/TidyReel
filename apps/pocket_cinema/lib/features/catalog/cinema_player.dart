@@ -64,6 +64,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     super.initState();
     _lockHardwareVolumeButtons = widget.library.lockHardwareVolumeButtons;
     widget.library.addListener(_lockPreferenceChanged);
+    widget.controller.addListener(_playbackBlockChanged);
+    _playbackBlockChanged();
     unawaited(syncControlsLock(false));
     unawaited(beginWatching());
     scheduleHide();
@@ -86,9 +88,19 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     unawaited(syncControlsLock(locked));
   }
 
+  void _playbackBlockChanged() {
+    // A completed episode must not start another as the loading screen clears.
+    if (widget.controller.playbackBlocked) autoplayCancelled = true;
+  }
+
   @override
   void didUpdateWidget(CinemaPlayer oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_playbackBlockChanged);
+      widget.controller.addListener(_playbackBlockChanged);
+      _playbackBlockChanged();
+    }
     if (oldWidget.library != widget.library) {
       oldWidget.library.removeListener(_lockPreferenceChanged);
       widget.library.addListener(_lockPreferenceChanged);
@@ -97,6 +109,10 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   }
 
   Future<void> start(CatalogVideo next) async {
+    if (widget.controller.playbackBlocked) {
+      opening = false;
+      return;
+    }
     video = next;
     opening = true;
     autoplayCancelled = false;
@@ -111,9 +127,18 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     if (mounted) setState(() => opening = false);
   }
 
+  Future<void> togglePlayback() async {
+    if (widget.controller.playbackBlocked || opening) return;
+    if (widget.controller.playback.snapshot.isOpen) {
+      await widget.controller.togglePlayPause();
+    } else {
+      await start(video);
+    }
+  }
+
   void playNext() {
     final next = nextVideo;
-    if (opening || next == null) return;
+    if (widget.controller.playbackBlocked || opening || next == null) return;
     widget.library.record(video);
     unawaited(widget.library.persist());
     unawaited(start(next));
@@ -122,7 +147,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   void checkAutoplay() {
     final playback = widget.controller.playback.snapshot;
     final lifecycle = WidgetsBinding.instance.lifecycleState;
-    if (opening ||
+    if (widget.controller.playbackBlocked ||
+        opening ||
         autoplayCancelled ||
         autoplayVideo == null ||
         !playback.isOpen ||
@@ -150,6 +176,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     timer?.cancel();
     controlsTimer?.cancel();
     widget.library.removeListener(_lockPreferenceChanged);
+    widget.controller.removeListener(_playbackBlockChanged);
     unawaited(syncControlsLock(false));
     unawaited(endWatching());
     if (!opening) widget.library.record(video);
@@ -284,6 +311,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                 )
           : 16.0;
       final showAutoplay =
+          !widget.controller.playbackBlocked &&
           !locked &&
           !opening &&
           !autoplayCancelled &&
@@ -413,8 +441,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                                         shape: const CircleBorder(),
                                         padding: EdgeInsets.zero,
                                       ),
-                                      onPressed: playback.isOpen
-                                          ? widget.controller.togglePlayPause
+                                      onPressed: !opening
+                                          ? togglePlayback
                                           : null,
                                       child: Icon(
                                         playback.isPlaying
@@ -487,9 +515,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                                 crossAxisAlignment: WrapCrossAlignment.center,
                                 children: [
                                   IconButton(
-                                    onPressed: playback.isOpen
-                                        ? widget.controller.togglePlayPause
-                                        : null,
+                                    onPressed: !opening ? togglePlayback : null,
                                     tooltip: 'Play or pause',
                                     icon: Icon(
                                       playback.isPlaying
@@ -678,7 +704,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                             paused: !playback.isPlaying,
                             onPlay: playNext,
                             onCancel: cancelAutoplay,
-                            onTogglePlayback: widget.controller.togglePlayPause,
+                            onTogglePlayback: togglePlayback,
                           ),
                         ),
                       ),

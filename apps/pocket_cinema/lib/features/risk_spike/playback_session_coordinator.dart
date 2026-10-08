@@ -43,8 +43,16 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
   MediaSourceLease? _lease;
   Future<void>? _lifecyclePause;
   AppFailure? _lifecycleFailure;
+  bool _playbackBlocked = false;
+  int _playbackBlockGeneration = 0;
 
   PlaybackEngine? get activeEngine => _engine;
+
+  void setPlaybackBlocked(bool blocked) {
+    if (_playbackBlocked == blocked) return;
+    _playbackBlocked = blocked;
+    if (blocked) _playbackBlockGeneration++;
+  }
 
   @override
   PlaybackSnapshot get snapshot {
@@ -57,7 +65,9 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
   Future<AppResult<void>> attachLease(
     MediaSourceLease lease, {
     Duration startPosition = Duration.zero,
+    bool autoplay = true,
   }) async {
+    final blockGeneration = _playbackBlockGeneration;
     await stop();
 
     final PlaybackEngine engine;
@@ -86,11 +96,24 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
       }
 
       final opened = await engine.open(
-        PlaybackRequest(sourceLease: lease, startPosition: startPosition),
+        PlaybackRequest(
+          sourceLease: lease,
+          startPosition: startPosition,
+          autoplay:
+              autoplay &&
+              !_playbackBlocked &&
+              blockGeneration == _playbackBlockGeneration,
+        ),
       );
       if (opened case FailureResult<void>(:final failure)) {
         await stop();
         return FailureResult<void>(failure);
+      }
+      if (_playbackBlocked || blockGeneration != _playbackBlockGeneration) {
+        final paused = await engine.pause();
+        if (paused is FailureResult<void> || engine.current.isPlaying) {
+          await stop();
+        }
       }
       return const Success<void>(null);
     } on Object {

@@ -218,6 +218,7 @@ void main() {
     bool movies = false,
     int initialPosition = 0,
     int nextResume = 0,
+    bool initiallyBlocked = false,
     TextScaler textScaler = TextScaler.noScaling,
   }) async {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -232,6 +233,7 @@ void main() {
       ),
       initialState: filesAvailableState,
     );
+    if (initiallyBlocked) controller.setPlaybackBlocked(true);
     final library = CatalogLibrary(controller);
     await library.load();
     final videos = List.generate(
@@ -294,6 +296,90 @@ void main() {
       navigator: navigator,
     );
   }
+
+  testWidgets(
+    'a player mounted while blocked waits for an explicit play after release',
+    (tester) async {
+      final fixture = await open(
+        tester,
+        initiallyBlocked: true,
+        initialPosition: 35,
+      );
+      expect(fixture.storage.openedKeys, isEmpty);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+      fixture.controller.setPlaybackBlocked(false);
+      await fixture.poll();
+      expect(fixture.storage.openedKeys, isEmpty);
+      expect(find.byTooltip('Back to library'), findsOneWidget);
+      await tester.tap(find.byTooltip('Play or pause'));
+      await tester.pumpAndSettle();
+
+      expect(fixture.storage.openedKeys, [fixture.videos[0].id]);
+      expect(
+        fixture.engine.request!.startPosition,
+        const Duration(seconds: 35),
+      );
+      expect(fixture.engine.current.isPlaying, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'blocking playback prevents episode changes and clearing does not autoplay',
+    (tester) async {
+      final fixture = await open(tester, initialPosition: 110);
+      expect(find.byKey(_prompt), findsOneWidget);
+      fixture.controller.setPlaybackBlocked(true);
+      await tester.pump();
+      expect(find.byKey(_prompt), findsNothing);
+      expect(fixture.engine.current.isPlaying, isFalse);
+      await tester.tap(find.byTooltip('Next Episode'));
+      await tester.pump();
+      await fixture.update(
+        position: _duration,
+        isCompleted: true,
+        isPlaying: false,
+      );
+      await tester.pump(const Duration(seconds: 5));
+      expect(fixture.storage.openedKeys, hasLength(1));
+
+      fixture.controller.setPlaybackBlocked(false);
+      await fixture.poll();
+      expect(fixture.storage.openedKeys, hasLength(1));
+      expect(fixture.engine.current.isPlaying, isFalse);
+      expect(find.byKey(_prompt), findsNothing);
+      await tester.tapAt(tester.getCenter(find.byType(CinemaPlayer)));
+      await tester.pump();
+      await tester.tap(find.byTooltip('Next Episode'));
+      await tester.pumpAndSettle();
+      expect(fixture.storage.openedKeys, hasLength(2));
+      expect(fixture.engine.current.isPlaying, isTrue);
+    },
+  );
+
+  testWidgets(
+    'an episode already opening finishes paused after a block clears',
+    (tester) async {
+      final fixture = await open(tester, nextResume: 20);
+      final gate = Completer<void>();
+      fixture.storage.openingGate = gate;
+      await tester.tap(find.byTooltip('Next Episode'));
+      await tester.pump();
+      expect(fixture.storage.openedKeys, hasLength(2));
+      fixture.controller.setPlaybackBlocked(true);
+      fixture.controller.setPlaybackBlocked(false);
+      gate.complete();
+      fixture.storage.openingGate = null;
+      await tester.pumpAndSettle();
+
+      expect(fixture.engine.request!.autoplay, isFalse);
+      expect(fixture.engine.current.isPlaying, isFalse);
+      expect(fixture.engine.current.position, const Duration(seconds: 20));
+      expect(fixture.library.positions[fixture.videos[0].id], 0);
+      await fixture.poll();
+      expect(fixture.storage.openedKeys, hasLength(2));
+    },
+  );
 
   testWidgets(
     'countdown follows playback through pause, buffering and seeking',

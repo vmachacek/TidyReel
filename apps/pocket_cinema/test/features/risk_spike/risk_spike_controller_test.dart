@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -71,6 +72,222 @@ const subtitleTooLargeFailure = AppFailure(
 );
 
 void main() {
+  test(
+    'blocking playback pauses, preserves progress and prevents controls',
+    () async {
+      const playing = PlaybackSnapshot(
+        isOpen: true,
+        isPlaying: true,
+        position: Duration(minutes: 3),
+        duration: Duration(minutes: 30),
+      );
+      final playback = FakePlaybackSession(
+        allowControls: true,
+        initialSnapshot: playing,
+      );
+      final storage = FakeStorageGateway(lease: directLease);
+      final controller = RiskSpikeController(
+        storage: storage,
+        probe: FakeMediaProbe(),
+        playback: playback,
+        initialState: RiskSpikeState(
+          phase: RiskSpikePhase.playing,
+          root: root,
+          selectedFile: videoEntry,
+          playbackSnapshot: playing,
+        ),
+      );
+      addTearDown(controller.dispose);
+      final observedBlocks = <bool>[];
+      controller.addListener(
+        () => observedBlocks.add(controller.playbackBlocked),
+      );
+
+      controller.setPlaybackBlocked(true);
+      expect(controller.playbackBlocked, isTrue);
+      expect(observedBlocks.first, isTrue);
+      await Future<void>.delayed(Duration.zero);
+      await controller.togglePlayPause();
+      await controller.seekBy(const Duration(seconds: 10));
+      await controller.seekToStart();
+      await controller.playSelected();
+      await controller.play(root, videoEntry);
+
+      expect(playback.controlCalls, ['pause']);
+      expect(playback.snapshot.isOpen, isTrue);
+      expect(playback.snapshot.isPlaying, isFalse);
+      expect(playback.snapshot.position, playing.position);
+      expect(playback.snapshot.duration, playing.duration);
+      expect(controller.state.playbackSnapshot.position, playing.position);
+      expect(playback.stopCount, 0);
+      expect(storage.openCount, 0);
+      controller.setPlaybackBlocked(false);
+      await Future<void>.delayed(Duration.zero);
+      expect(playback.controlCalls, ['pause']);
+      expect(playback.snapshot.isPlaying, isFalse);
+      await controller.togglePlayPause();
+      expect(playback.controlCalls, ['pause', 'play']);
+      expect(playback.snapshot.position, playing.position);
+    },
+  );
+
+  test('blocking playback stops the source if pausing fails', () async {
+    final playback = FakePlaybackSession(
+      allowControls: true,
+      allowStop: true,
+      pauseFailure: fileUnavailableFailure,
+      initialSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+    );
+    final controller = RiskSpikeController(
+      storage: FakeStorageGateway(),
+      probe: FakeMediaProbe(),
+      playback: playback,
+    );
+    addTearDown(controller.dispose);
+
+    controller.setPlaybackBlocked(true);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(playback.controlCalls, ['pause']);
+    expect(playback.stopCount, 1);
+    expect(controller.state.playbackSnapshot.isOpen, isFalse);
+  });
+
+  test('late playback updates are paused again while blocked', () async {
+    final playback = FakePlaybackSession(
+      allowControls: true,
+      initialSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+    );
+    final controller = RiskSpikeController(
+      storage: FakeStorageGateway(),
+      probe: FakeMediaProbe(),
+      playback: playback,
+    );
+    addTearDown(controller.dispose);
+
+    controller.setPlaybackBlocked(true);
+    await Future<void>.delayed(Duration.zero);
+    playback._snapshot = playback.snapshot.copyWith(isPlaying: true);
+    controller.refreshPlaybackSnapshot();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(playback.controlCalls, ['pause', 'pause']);
+    expect(controller.state.playbackSnapshot.isPlaying, isFalse);
+  });
+
+  for (final clearBeforeOpen in [false, true]) {
+    test(
+      'source opening interrupted by a block finishes paused (clear: $clearBeforeOpen)',
+      () async {
+        final opening = Completer<void>();
+        final playback = FakePlaybackSession(allowControls: true);
+        final storage = FakeStorageGateway(
+          lease: directLease,
+          onOpen: () => opening.future,
+        );
+        final controller = RiskSpikeController(
+          storage: storage,
+          probe: FakeMediaProbe(),
+          playback: playback,
+        );
+        addTearDown(controller.dispose);
+
+        final started = controller.play(
+          root,
+          videoEntry,
+          startPosition: const Duration(minutes: 3),
+        );
+        controller.setPlaybackBlocked(true);
+        if (clearBeforeOpen) controller.setPlaybackBlocked(false);
+        opening.complete();
+        await started;
+
+        expect(playback.openCount, 1);
+        expect(playback.snapshot.isPlaying, isFalse);
+        expect(playback.snapshot.position, const Duration(minutes: 3));
+        expect(playback.controlCalls, ['pause']);
+        expect(storage.activeLeaseCount, 1);
+      },
+    );
+  }
+
+  test(
+    'a block during attaching playback leaves the new source paused',
+    () async {
+      final attaching = Completer<void>();
+      final playback = FakePlaybackSession(
+        allowControls: true,
+        onAttach: () => attaching.future,
+      );
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(lease: directLease),
+        probe: FakeMediaProbe(),
+        playback: playback,
+      );
+      addTearDown(controller.dispose);
+
+      final started = controller.play(root, videoEntry);
+      await Future<void>.delayed(Duration.zero);
+      controller.setPlaybackBlocked(true);
+      controller.setPlaybackBlocked(false);
+      attaching.complete();
+      await started;
+
+      expect(playback.snapshot.isOpen, isTrue);
+      expect(playback.snapshot.isPlaying, isFalse);
+      expect(playback.controlCalls, ['pause']);
+    },
+  );
+
+  test('a delayed play command cannot resume after a block clears', () async {
+    final playing = Completer<void>();
+    final playback = FakePlaybackSession(
+      allowControls: true,
+      onPlay: () => playing.future,
+      initialSnapshot: const PlaybackSnapshot(isOpen: true),
+    );
+    final controller = RiskSpikeController(
+      storage: FakeStorageGateway(),
+      probe: FakeMediaProbe(),
+      playback: playback,
+    );
+    addTearDown(controller.dispose);
+
+    final started = controller.togglePlayPause();
+    await Future<void>.delayed(Duration.zero);
+    controller.setPlaybackBlocked(true);
+    controller.setPlaybackBlocked(false);
+    playing.complete();
+    await started;
+
+    expect(playback.controlCalls, ['play', 'pause']);
+    expect(playback.snapshot.isPlaying, isFalse);
+  });
+
+  test(
+    'a pending play gesture is cancelled if a block starts and clears',
+    () async {
+      final playback = FakePlaybackSession(
+        allowControls: true,
+        initialSnapshot: const PlaybackSnapshot(isOpen: true),
+      );
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(),
+        probe: FakeMediaProbe(),
+        playback: playback,
+      );
+      addTearDown(controller.dispose);
+
+      final started = controller.togglePlayPause();
+      controller.setPlaybackBlocked(true);
+      controller.setPlaybackBlocked(false);
+      await started;
+
+      expect(playback.controlCalls, isEmpty);
+      expect(playback.snapshot.isPlaying, isFalse);
+    },
+  );
+
   test('failed scan retains partial count and never marks complete', () async {
     final storage = FakeStorageGateway.scan([
       StorageScanBatch('scan-1', [videoEntry]),
@@ -313,6 +530,7 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     this.subtitleReadFailure,
     this.lease,
     this.releaseRootSucceeds = false,
+    this.onOpen,
   });
 
   factory FakeStorageGateway.scan(List<StorageScanEvent> events) =>
@@ -323,7 +541,9 @@ final class FakeStorageGateway implements LibraryStorageGateway {
   final AppFailure? subtitleReadFailure;
   final MediaSourceLease? lease;
   final bool releaseRootSucceeds;
+  final Future<void> Function()? onOpen;
   int activeLeaseCount = 0;
+  int openCount = 0;
 
   @override
   Stream<StorageScanEvent> enumerateRecursively({
@@ -342,6 +562,8 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     required String storageKey,
     required PlaybackSourceStrategy strategy,
   }) async {
+    openCount++;
+    await onOpen?.call();
     final failure = openFailure;
     if (failure != null) {
       return FailureResult<MediaSourceLease>(failure);
@@ -407,15 +629,24 @@ final class FakePlaybackSession implements PlaybackSession {
     this.allowStop = false,
     this.allowLifecycleInactive = false,
     this.lifecycleFailure,
+    this.allowControls = false,
+    this.pauseFailure,
+    this.onAttach,
+    this.onPlay,
     PlaybackSnapshot initialSnapshot = const PlaybackSnapshot.closed(),
   }) : _snapshot = initialSnapshot;
 
   final bool allowStop;
   final bool allowLifecycleInactive;
   final AppFailure? lifecycleFailure;
+  final bool allowControls;
+  final AppFailure? pauseFailure;
+  final Future<void> Function()? onAttach;
+  final Future<void> Function()? onPlay;
   PlaybackSnapshot _snapshot;
   int openCount = 0;
   int stopCount = 0;
+  final controlCalls = <String>[];
 
   @override
   PlaybackSnapshot get snapshot => _snapshot;
@@ -426,7 +657,12 @@ final class FakePlaybackSession implements PlaybackSession {
     Duration startPosition = Duration.zero,
   }) async {
     openCount++;
-    _snapshot = const PlaybackSnapshot(isOpen: true, isPlaying: true);
+    await onAttach?.call();
+    _snapshot = PlaybackSnapshot(
+      isOpen: true,
+      isPlaying: true,
+      position: startPosition,
+    );
     return const Success<void>(null);
   }
 
@@ -449,16 +685,31 @@ final class FakePlaybackSession implements PlaybackSession {
   }
 
   @override
-  Future<AppResult<void>> pause() =>
-      throw StateError('Unexpected test call: pause');
+  Future<AppResult<void>> pause() async {
+    if (!allowControls) throw StateError('Unexpected test call: pause');
+    controlCalls.add('pause');
+    final failure = pauseFailure;
+    if (failure != null) return FailureResult<void>(failure);
+    _snapshot = _snapshot.copyWith(isPlaying: false);
+    return const Success<void>(null);
+  }
 
   @override
-  Future<AppResult<void>> play() =>
-      throw StateError('Unexpected test call: play');
+  Future<AppResult<void>> play() async {
+    if (!allowControls) throw StateError('Unexpected test call: play');
+    controlCalls.add('play');
+    await onPlay?.call();
+    _snapshot = _snapshot.copyWith(isPlaying: true);
+    return const Success<void>(null);
+  }
 
   @override
-  Future<AppResult<void>> seek(Duration position) =>
-      throw StateError('Unexpected test call: seek');
+  Future<AppResult<void>> seek(Duration position) async {
+    if (!allowControls) throw StateError('Unexpected test call: seek');
+    controlCalls.add('seek');
+    _snapshot = _snapshot.copyWith(position: position);
+    return const Success<void>(null);
+  }
 
   @override
   Future<void> stop() async {

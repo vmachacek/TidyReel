@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:media_domain/media_domain.dart';
 import 'package:media_platform_storage/media_platform_storage.dart';
@@ -26,6 +28,62 @@ final class RiskSpikeController extends ChangeNotifier {
 
   RiskSpikeState _state;
   RiskSpikeState get state => _state;
+
+  bool _playbackBlocked = false;
+  int _playbackBlockGeneration = 0;
+  Future<void>? _playbackBlockPause;
+  bool _disposed = false;
+
+  bool get playbackBlocked => _playbackBlocked;
+
+  void setPlaybackBlocked(bool blocked) {
+    if (_playbackBlocked == blocked) return;
+    _playbackBlocked = blocked;
+    if (blocked) _playbackBlockGeneration++;
+    if (playback case final PlaybackSessionCoordinator coordinator) {
+      coordinator.setPlaybackBlocked(blocked);
+    }
+    notifyListeners();
+    if (blocked) unawaited(_pauseForPlaybackBlock());
+  }
+
+  Future<void> _pauseForPlaybackBlock() {
+    final pending = _playbackBlockPause;
+    if (pending != null) {
+      return pending.then((_) {
+        if (playback.snapshot.isPlaying) return _pauseForPlaybackBlock();
+      });
+    }
+    if (!playback.snapshot.isOpen || !playback.snapshot.isPlaying) {
+      return Future<void>.value();
+    }
+    late final Future<void> operation;
+    operation = _pauseOrStopPlayback().whenComplete(() {
+      if (identical(_playbackBlockPause, operation)) _playbackBlockPause = null;
+    });
+    _playbackBlockPause = operation;
+    return operation;
+  }
+
+  Future<void> _pauseOrStopPlayback() async {
+    var shouldStop = false;
+    try {
+      final result = await playback.pause();
+      shouldStop = result is FailureResult<void> || playback.snapshot.isPlaying;
+    } on Object {
+      shouldStop = true;
+    }
+    if (shouldStop) {
+      try {
+        await playback.stop();
+      } on Object catch (error) {
+        debugPrint('Could not finish stopping blocked playback: $error');
+      }
+    }
+    if (!_disposed) {
+      _emit(_state.copyWith(playbackSnapshot: playback.snapshot));
+    }
+  }
 
   final List<StorageEntrySnapshot> _subtitleEntries = <StorageEntrySnapshot>[];
   CancellationController? _scanCancellation;
@@ -207,6 +265,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> playSelected({Duration startPosition = Duration.zero}) async {
+    if (_playbackBlocked) return;
     final root = _state.root;
     final entry = _state.selectedFile;
     if (root == null || entry == null) {
@@ -229,6 +288,8 @@ final class RiskSpikeController extends ChangeNotifier {
     String? subtitleLanguageTag,
     Duration startPosition = Duration.zero,
   }) async {
+    if (_playbackBlocked) return;
+    final blockGeneration = _playbackBlockGeneration;
     _emit(
       _state.copyWith(
         phase: RiskSpikePhase.openingPlayback,
@@ -252,13 +313,21 @@ final class RiskSpikeController extends ChangeNotifier {
         return;
     }
 
-    final opened = await playback.attachLease(
-      lease,
-      startPosition: startPosition,
-    );
+    final opened = await switch (playback) {
+      final PlaybackSessionCoordinator coordinator => coordinator.attachLease(
+        lease,
+        startPosition: startPosition,
+        autoplay:
+            !_playbackBlocked && blockGeneration == _playbackBlockGeneration,
+      ),
+      final session => session.attachLease(lease, startPosition: startPosition),
+    };
     if (opened case FailureResult<void>(:final failure)) {
       _fail(failure, root: root);
       return;
+    }
+    if (_playbackBlocked || blockGeneration != _playbackBlockGeneration) {
+      await _pauseForPlaybackBlock();
     }
     _emit(
       _state.copyWith(
@@ -292,6 +361,9 @@ final class RiskSpikeController extends ChangeNotifier {
 
   void refreshPlaybackSnapshot() {
     final current = playback.snapshot;
+    if (_playbackBlocked && current.isPlaying) {
+      unawaited(_pauseForPlaybackBlock());
+    }
     if (current.isOpen &&
         (current.position != _state.playbackSnapshot.position ||
             current.duration != _state.playbackSnapshot.duration ||
@@ -312,13 +384,22 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> togglePlayPause() async {
+    if (_playbackBlocked) return;
+    final blockGeneration = _playbackBlockGeneration;
+    await _playbackBlockPause;
+    if (_playbackBlocked || blockGeneration != _playbackBlockGeneration) return;
     final result = playback.snapshot.isPlaying
         ? await playback.pause()
         : await playback.play();
+    if (_playbackBlocked || blockGeneration != _playbackBlockGeneration) {
+      await _pauseForPlaybackBlock();
+      return;
+    }
     _applyPlaybackResult(result);
   }
 
   Future<void> seekBy(Duration delta) async {
+    if (_playbackBlocked) return;
     final current = playback.snapshot.position;
     var target = current + delta;
     if (target.isNegative) {
@@ -332,6 +413,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> seekToStart() async {
+    if (_playbackBlocked) return;
     _applyPlaybackResult(await playback.seek(Duration.zero));
   }
 
@@ -457,5 +539,11 @@ final class RiskSpikeController extends ChangeNotifier {
   void _emit(RiskSpikeState next) {
     _state = next;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
   }
 }

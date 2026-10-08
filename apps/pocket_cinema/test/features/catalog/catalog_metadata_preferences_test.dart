@@ -111,8 +111,10 @@ class LibraryFixture {
   Future<void> initialize() async {
     await library.load();
     library.titlesFor(controller.state.entries);
+    await library.waitForDiscovery();
     await library.matcher.enrich(library.localTitles, library.catalogScope);
     await library.matcher.idle;
+    await library.waitForDiscovery();
   }
 
   void close() {
@@ -177,6 +179,7 @@ void main() {
     for (final local in locals) {
       await library.matcher.select(local, library.catalogScope, firstCandidate);
     }
+    await library.waitForDiscovery();
     final canonical = library.currentTitles.single;
     expect(canonical.id, 'tmdb:tv:42');
     expect(canonical.localIds, unorderedEquals(locals.map((t) => t.id)));
@@ -185,6 +188,7 @@ void main() {
     expect(library.saved, unorderedEquals(locals.map((t) => t.id)));
 
     library.matcher.forget(canonical, library.catalogScope);
+    await library.waitForDiscovery();
     expect(library.currentTitles, hasLength(2));
     expect(library.currentTitles.every(library.isSaved), isTrue);
     expect(library.currentTitles.every((t) => t.providerId == null), isTrue);
@@ -195,6 +199,7 @@ void main() {
         secondCandidate,
       );
     }
+    await library.waitForDiscovery();
     final corrected = library.currentTitles.single;
     expect(corrected.id, 'tmdb:tv:99');
     expect(library.isSaved(corrected), isTrue);
@@ -261,6 +266,7 @@ void main() {
       final library = first.library;
       final local = library.localTitles.single;
       await library.matcher.select(local, library.catalogScope, firstCandidate);
+      await library.waitForDiscovery();
       library.matcher.forget(
         library.currentTitles.single,
         library.catalogScope,
@@ -275,6 +281,7 @@ void main() {
       final restarted = fixture([entries.first], source);
       await restarted.initialize();
       await restarted.library.retryMatching();
+      await restarted.library.waitForDiscovery();
       final restored = restarted.library.currentTitles.single;
       expect(restored.id, local.id);
       expect(restored.name, 'My Show');

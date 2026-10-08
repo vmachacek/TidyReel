@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 
+import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
 import 'catalog_library_test.dart' as files;
 import 'catalog_screen_test.dart' as screens;
@@ -35,7 +36,7 @@ Future<void> _openOnlyTitle(WidgetTester tester) async {
     scrollable: find.byType(Scrollable).first,
   );
   await tester.tap(find.byType(PosterCard));
-  await tester.pumpAndSettle();
+  await settleCatalog(tester);
   expect(find.byType(CatalogDetail), findsOneWidget);
 }
 
@@ -46,13 +47,13 @@ void main() {
       await _mobile(tester);
       _localPreferences();
       await tester.pumpWidget(screens.app(fixtures.filesAvailableState));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
 
       await tester.tap(find.text('Settings'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(find.text('Library Settings'), findsOneWidget);
       await tester.ensureVisible(find.byKey(const Key('tmdb-token')));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(find.byKey(const Key('tmdb-token')).hitTestable(), findsOneWidget);
       expect(find.text('TMDB Read Access Token'), findsOneWidget);
       expect(
@@ -69,7 +70,7 @@ void main() {
       );
 
       await tester.ensureVisible(find.text('Metadata credits'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(find.text('Metadata credits').hitTestable(), findsOneWidget);
       final logo = find.byWidgetPredicate(
         (widget) =>
@@ -81,7 +82,7 @@ void main() {
           'This product uses the TMDB API but is not endorsed or certified by TMDB.',
         ),
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(
         find
             .text(
@@ -109,14 +110,14 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await _openOnlyTitle(tester);
     await tester.scrollUntilVisible(
       find.byType(EpisodeCard).hitTestable(),
       200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
 
     expect(find.text('Season 1'), findsOneWidget);
     expect(find.text('Hard Times'), findsOneWidget);
@@ -132,16 +133,16 @@ void main() {
       -200,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.tap(find.byKey(const Key('refresh-tv-artwork')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Current artwork'), findsOneWidget);
     expect(
       find.text('Enable TMDB in Library Settings to refresh artwork.'),
       findsOneWidget,
     );
     await tester.tap(find.text('Keep current'));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.byType(CatalogDetail), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -170,17 +171,17 @@ void main() {
           },
         );
         await tester.pumpWidget(screens.app(fixtures.filesAvailableState));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
         await _openOnlyTitle(tester);
 
         await tester.ensureVisible(find.text('Review match'));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
         expect(
           find.text(cachedMatch ? 'TMDB · Confirmed by you' : 'Local grouping'),
           findsOneWidget,
         );
         await tester.tap(find.text('Review match'));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
 
         expect(
           find.text('Review ${cachedMatch ? 'The Matched Movie' : 'Movie'}'),
@@ -197,7 +198,7 @@ void main() {
         expect(tester.takeException(), isNull);
 
         await tester.tap(find.text('Use local names'));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
         expect(find.text('Local grouping'), findsOneWidget);
         expect(find.text('Use local names'), findsNothing);
         expect(tester.takeException(), isNull);

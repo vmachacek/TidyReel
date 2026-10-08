@@ -82,14 +82,18 @@ abstract class StorageHostApi {
   @async
   AuthorizedRootMessage chooseDirectory();
 
+  // Provider access can block, so discovery stays off Android's UI thread.
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   List<AuthorizedRootMessage> listPersistedPermissions();
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   RootAccessMessage checkRoot(String treeUri);
 
   void startScan(String treeUri, String scanId, int batchSize);
 
   void cancelScan(String scanId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   SmallFileMessage readSmallFile(
     String treeUri,
     String storageKey,
@@ -104,7 +108,9 @@ abstract class StorageHostApi {
 
   void closePlaybackSource(String leaseId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   ProbeResultMessage probeFile(String treeUri, String storageKey);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void releasePermission(String treeUri);
 }

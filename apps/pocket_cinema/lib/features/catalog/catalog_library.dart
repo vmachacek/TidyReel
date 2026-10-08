@@ -9,6 +9,7 @@ import 'package:media_platform_storage/media_platform_storage.dart';
 
 import '../risk_spike/risk_spike_controller.dart';
 import '../../infrastructure/metadata/tmdb_catalog_metadata_source.dart';
+import 'catalog_discovery_worker.dart';
 import 'catalog_matching.dart';
 import 'catalog_metadata.dart';
 
@@ -103,11 +104,26 @@ class CatalogTitle {
       .fold<DateTime?>(null, (a, b) => a == null || b.isAfter(a) ? b : a);
 }
 
-List<CatalogTitle> groupCatalog(List<StorageEntrySnapshot> files) {
+List<CatalogTitle> groupCatalog(
+  List<StorageEntrySnapshot> files, {
+  List<CatalogTitle> previousTitles = const [],
+}) {
   final result = <CatalogTitle>[];
   final series = <String, List<CatalogVideo>>{};
+  final previous = {
+    for (final title in previousTitles)
+      for (final video in title.videos) video.id: video,
+  };
   for (final file in files) {
-    final video = CatalogVideo(file);
+    final cached = previous[file.storageKey];
+    // Isolate messages copy objects, so unchanged names are the cache identity.
+    // Reattach the new snapshot to retain updated sizes, timestamps and flags.
+    final video =
+        cached != null &&
+            cached.file.displayName == file.displayName &&
+            cached.file.relativePath == file.relativePath
+        ? CatalogVideo.identified(file, cached.parsed)
+        : CatalogVideo(file);
     if (video.series != null) {
       final key = video.parsed.warnings.contains('MISSING_SERIES_TITLE')
           ? 'unidentified:${video.id}'
@@ -147,66 +163,180 @@ List<CatalogTitle> groupCatalog(List<StorageEntrySnapshot> files) {
 }
 
 class CatalogLibrary extends ChangeNotifier {
-  CatalogLibrary(this.controller, {CatalogMetadataSource? metadataSource})
-    : matcher = CatalogMatcher(source: metadataSource),
-      _injectedSource = metadataSource != null {
+  CatalogLibrary(
+    this.controller, {
+    CatalogMetadataSource? metadataSource,
+    CatalogDiscoveryWorker? discoveryWorker,
+  }) : matcher = CatalogMatcher(source: metadataSource),
+       _discoveryWorker = discoveryWorker ?? discoverCatalogInBackground,
+       _injectedSource = metadataSource != null {
     matcher.addListener(_matchingChanged);
+    controller.addListener(_controllerChanged);
+    _controllerChanged();
     unawaited(load());
   }
   final RiskSpikeController controller;
   final CatalogMatcher matcher;
+  final CatalogDiscoveryWorker _discoveryWorker;
   final bool _injectedSource;
   Future<void>? _loading;
   List<StorageEntrySnapshot>? _catalogEntries;
   List<CatalogTitle> _localTitles = const [];
   List<CatalogTitle> _presentationTitles = const [];
-  bool _presentationDirty = true;
+  bool _groupingDirty = false;
+  bool _discoveryRequested = false;
+  bool _discoveryRunning = false;
+  int _catalogRevision = 0;
+  int _activeCatalogRevision = -1;
+  int _matchingRevision = 0;
+  int _observedMatchingRevision = 0;
+  Completer<void>? _discoveryIdle;
   String _catalogScope = '';
   bool metadataConfigured = false;
   String? settingsError;
+  String? discoveryError;
+  bool get isDiscovering =>
+      !_disposed &&
+      (_discoveryRequested ||
+          (_discoveryRunning && _activeCatalogRevision == _catalogRevision));
   String get catalogScope => _catalogScope;
   List<CatalogTitle> get localTitles => _localTitles;
-  List<CatalogTitle> get currentTitles {
-    if (_presentationDirty) {
-      _presentationTitles = matcher.apply(_localTitles, _catalogScope);
-      _presentationDirty = false;
-      if (!_disposed &&
-          _propagateArtworkAliases(_presentationTitles) &&
-          !_artworkChoicesPersistScheduled) {
-        _artworkChoicesPersistScheduled = true;
-        unawaited(
-          Future<void>.microtask(() async {
-            _artworkChoicesPersistScheduled = false;
-            if (!_disposed) await persist();
-          }),
-        );
-      }
-    }
-    return _presentationTitles;
-  }
+  List<CatalogTitle> get currentTitles => _presentationTitles;
 
   List<CatalogTitle> titlesFor(List<StorageEntrySnapshot> entries) {
+    _updateCatalog(entries);
+    return currentTitles;
+  }
+
+  void _controllerChanged() => _updateCatalog(controller.state.entries);
+
+  void _updateCatalog(List<StorageEntrySnapshot> entries) {
+    if (_disposed) return;
     final scope = controller.state.root?.locator.opaqueValue ?? '';
     if (!identical(_catalogEntries, entries) || scope != _catalogScope) {
+      final scopeChanged = scope != _catalogScope;
       _catalogEntries = entries;
       _catalogScope = scope;
-      _localTitles = groupCatalog(entries);
-      _presentationDirty = true;
-      unawaited(
-        Future<void>.microtask(() async {
-          await load();
-          if (!_disposed) await matcher.enrich(_localTitles, _catalogScope);
-        }),
-      );
+      _catalogRevision++;
+      discoveryError = null;
+      if (scopeChanged || entries.isEmpty) {
+        _localTitles = const [];
+        _presentationTitles = const [];
+      }
+      _groupingDirty = entries.isNotEmpty;
+      _scheduleDiscovery();
     }
-    return currentTitles;
+  }
+
+  /// Waits for local parsing and cached metadata, without waiting on the network.
+  Future<void> waitForDiscovery() async {
+    while (!_disposed && _discoveryIdle != null) {
+      await _discoveryIdle!.future;
+    }
+  }
+
+  void retryDiscovery() {
+    if (_disposed) return;
+    discoveryError = null;
+    _scheduleDiscovery();
+  }
+
+  void _scheduleDiscovery() {
+    if (_disposed) return;
+    _discoveryRequested = true;
+    if (_discoveryIdle != null) return;
+    _discoveryIdle = Completer<void>();
+    // Calls from titlesFor/build only queue work; they never notify mid-build.
+    unawaited(Future<void>.microtask(_runDiscovery));
+  }
+
+  Future<void> _runDiscovery() async {
+    _discoveryRunning = true;
+    try {
+      while (_discoveryRequested && !_disposed) {
+        _discoveryRequested = false;
+        final revision = _catalogRevision;
+        final matchingRevision = _matchingRevision;
+        _activeCatalogRevision = revision;
+        final entries = _groupingDirty ? _catalogEntries : null;
+        final scope = _catalogScope;
+        notifyListeners();
+        if (_catalogEntries?.isEmpty ?? true) {
+          _localTitles = const [];
+          _presentationTitles = const [];
+          _groupingDirty = false;
+          discoveryError = null;
+          continue;
+        }
+        try {
+          final result = await _discoveryWorker(
+            CatalogDiscoveryRequest(
+              scope: scope,
+              entries: entries,
+              localTitles: _localTitles,
+              matching: matcher.snapshot(),
+            ),
+          );
+          if (_disposed || revision != _catalogRevision) continue;
+          _localTitles = result.localTitles;
+          _groupingDirty = false;
+          discoveryError = null;
+          if (matchingRevision == _matchingRevision) {
+            _presentationTitles = result.titles;
+            _persistArtworkAliases();
+          } else {
+            _discoveryRequested = true;
+          }
+          if (entries != null) unawaited(_enrichCatalog(revision));
+        } on Object {
+          if (_disposed ||
+              revision != _catalogRevision ||
+              matchingRevision != _matchingRevision) {
+            continue;
+          }
+          discoveryError = 'Could not organize the media library. Try scanning the folder again.';
+        }
+      }
+    } finally {
+      _discoveryRunning = false;
+      final completion = _discoveryIdle;
+      _discoveryIdle = null;
+      completion?.complete();
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _enrichCatalog(int revision) async {
+    await load();
+    if (!_disposed && revision == _catalogRevision) {
+      await matcher.enrich(_localTitles, _catalogScope);
+    }
+  }
+
+  void _persistArtworkAliases() {
+    if (_disposed ||
+        !_propagateArtworkAliases(_presentationTitles) ||
+        _artworkChoicesPersistScheduled) {
+      return;
+    }
+    _artworkChoicesPersistScheduled = true;
+    unawaited(
+      Future<void>.microtask(() async {
+        _artworkChoicesPersistScheduled = false;
+        if (!_disposed) await persist();
+      }),
+    );
   }
 
   void _matchingChanged() {
     if (_disposed) return;
-    _presentationDirty = true;
+    if (_observedMatchingRevision != matcher.presentationRevision) {
+      _observedMatchingRevision = matcher.presentationRevision;
+      _matchingRevision++;
+      _scheduleDiscovery();
+      unawaited(persist());
+    }
     notifyListeners();
-    unawaited(persist());
   }
 
   Future<void> setMetadataToken(String token) async {
@@ -266,6 +396,7 @@ class CatalogLibrary extends ChangeNotifier {
   Future<void> _load() async {
     try {
       final raw = await channel.invokeMethod<String>('loadPreferences');
+      if (_disposed) return;
       final data = jsonDecode(raw ?? '{}') as Map<String, dynamic>;
       saved.addAll((data['saved'] as List<dynamic>? ?? []).cast<String>());
       positions.addAll(
@@ -291,7 +422,9 @@ class CatalogLibrary extends ChangeNotifier {
       matcher.localOnly.addAll(
         (data['localOnlyTitles'] as List<dynamic>? ?? []).whereType<String>(),
       );
-      _presentationDirty = true;
+      _observedMatchingRevision = matcher.presentationRevision;
+      _matchingRevision++;
+      _scheduleDiscovery();
       if (!_disposed) notifyListeners();
     } on Object {
       /* Preferences are optional on non-Android test hosts. */
@@ -432,6 +565,11 @@ class CatalogLibrary extends ChangeNotifier {
     if (_disposed ||
         controller.state.root?.locator.opaqueValue != scope ||
         !identical(matcher.artworkSource, source) ||
+        title.localIds.any(
+          (id) =>
+              matcher.matches[jsonEncode([scope, id])]?.candidate.providerId !=
+              title.providerId,
+        ) ||
         _artworkRequestKey(_artworkTitle(title), scope) != requestKey) {
       throw const CatalogMetadataException(
         'The show or library changed. Refresh artwork again.',
@@ -684,6 +822,10 @@ class CatalogLibrary extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _catalogRevision++;
+    controller.removeListener(_controllerChanged);
+    _discoveryIdle?.complete();
+    _discoveryIdle = null;
     matcher.removeListener(_matchingChanged);
     matcher.dispose();
     super.dispose();

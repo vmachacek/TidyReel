@@ -105,6 +105,7 @@ void main() {
       fixture.library.catalogScope,
       fixtures.firstCandidate,
     );
+    await fixture.library.waitForDiscovery();
   });
 
   tearDown(() {
@@ -205,6 +206,7 @@ void main() {
         files.file('Shows/An Alias/Season 3/An.Alias.S03E01.mp4'),
       ];
       library.titlesFor([...originalEntries, ...aliasEntries]);
+      await library.waitForDiscovery();
       await library.matcher.idle;
       final alias = library.localTitles.singleWhere(
         (title) => title.name == 'An Alias',
@@ -214,6 +216,7 @@ void main() {
         library.catalogScope,
         fixtures.firstCandidate,
       );
+      await library.waitForDiscovery();
       final merged = library.currentTitles.single;
       expect(merged.localIds, hasLength(2));
       expect(await library.thumbnail(merged.videos.last), [2]);
@@ -271,6 +274,7 @@ void main() {
         files.file('Shows/An Alias/Season 3/An.Alias.S03E01.mp4'),
       ];
       library.titlesFor([...fixture.controller.state.entries, ...aliasEntries]);
+      await library.waitForDiscovery();
       await library.matcher.idle;
       final alias = library.localTitles.singleWhere(
         (title) => title.name == 'An Alias',
@@ -280,6 +284,7 @@ void main() {
         library.catalogScope,
         fixtures.firstCandidate,
       );
+      await library.waitForDiscovery();
       expect(library.currentTitles.single.localIds, hasLength(2));
       await library.persist();
       fixture.close();
@@ -307,6 +312,7 @@ void main() {
       library.catalogScope,
       fixtures.secondCandidate,
     );
+    await library.waitForDiscovery();
     expect(library.currentTitles.single.providerId, '99');
     expect(await library.thumbnail(library.currentTitles.single.first), [2]);
   });

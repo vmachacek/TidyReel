@@ -67,11 +67,24 @@ class CatalogMatcher extends ChangeNotifier {
   String _queuedScope = '';
   bool _running = false, _disposed = false;
   int _generation = 0;
+  int _presentationRevision = 0;
+  int get presentationRevision => _presentationRevision;
   bool get enabled => _source != null;
   CatalogArtworkSource? get artworkSource =>
       _source is CatalogArtworkSource ? _source as CatalogArtworkSource : null;
   bool get busy => _running;
   String key(String scope, CatalogTitle title) => jsonEncode([scope, title.id]);
+
+  void _notifyPresentationChanged() {
+    _presentationRevision++;
+    if (!_disposed) notifyListeners();
+  }
+
+  CatalogMatchingSnapshot snapshot() => CatalogMatchingSnapshot(
+    matches: Map<String, CatalogResolvedMatch>.unmodifiable(matches),
+    candidateKeys: Set<String>.unmodifiable(candidates.keys),
+    failures: Map<String, String>.unmodifiable(failures),
+  );
 
   void configure(CatalogMetadataSource? source) {
     _generation++;
@@ -80,7 +93,7 @@ class CatalogMatcher extends ChangeNotifier {
     _attempted.clear();
     candidates.clear();
     failures.clear();
-    if (!_disposed) notifyListeners();
+    _notifyPresentationChanged();
   }
 
   Map<String, Object?> toJson() => {
@@ -114,6 +127,7 @@ class CatalogMatcher extends ChangeNotifier {
         // A damaged cache entry cannot prevent local playback.
       }
     }
+    _presentationRevision++;
   }
 
   Future<void> enrich(List<CatalogTitle> titles, String scope) async {
@@ -168,12 +182,12 @@ class CatalogMatcher extends ChangeNotifier {
                 candidates: found,
               );
               if (selected == null) {
-                notifyListeners();
+                _notifyPresentationChanged();
                 continue;
               }
               match = CatalogResolvedMatch(selected, const []);
               matches[cacheKey] = match;
-              notifyListeners();
+              _notifyPresentationChanged();
             }
             final episodes = [...match.episodes];
             if (title.isSeries) {
@@ -201,12 +215,12 @@ class CatalogMatcher extends ChangeNotifier {
               manual: match.manual || matches[cacheKey]?.manual == true,
             );
             failures.remove(cacheKey);
-            notifyListeners();
+            _notifyPresentationChanged();
           } on Object {
             if (stale()) continue;
             failures[cacheKey] =
                 'Metadata unavailable. Local files are ready to play.';
-            notifyListeners();
+            _notifyPresentationChanged();
           }
         }
       }
@@ -229,7 +243,7 @@ class CatalogMatcher extends ChangeNotifier {
     matches[cacheKey] = CatalogResolvedMatch(candidate, const [], manual: true);
     failures.remove(cacheKey);
     _attempted.removeWhere((k) => k.startsWith('$cacheKey|'));
-    notifyListeners();
+    _notifyPresentationChanged();
     await enrich([title], scope);
   }
 
@@ -243,12 +257,13 @@ class CatalogMatcher extends ChangeNotifier {
       // A user's local-name preference survives automatic retries.
       localOnly.add(cacheKey);
     }
-    notifyListeners();
+    _notifyPresentationChanged();
   }
 
   Future<void> retry(List<CatalogTitle> titles, String scope) {
     _attempted.clear();
     failures.clear();
+    _notifyPresentationChanged();
     return enrich(titles, scope);
   }
 
@@ -281,8 +296,34 @@ class CatalogMatcher extends ChangeNotifier {
       }
       failures[cacheKey] = 'Metadata search is unavailable. Please try again.';
     }
-    if (!_disposed) notifyListeners();
+    _notifyPresentationChanged();
   }
+
+  List<CatalogTitle> apply(List<CatalogTitle> local, String scope) =>
+      snapshot().apply(local, scope);
+
+  @override
+  void dispose() {
+    _disposed = true;
+    _generation++;
+    _source?.dispose();
+    super.dispose();
+  }
+}
+
+/// Only transferable model data crosses the catalog worker boundary.
+class CatalogMatchingSnapshot {
+  const CatalogMatchingSnapshot({
+    this.matches = const {},
+    this.candidateKeys = const {},
+    this.failures = const {},
+  });
+
+  final Map<String, CatalogResolvedMatch> matches;
+  final Set<String> candidateKeys;
+  final Map<String, String> failures;
+
+  String key(String scope, CatalogTitle title) => jsonEncode([scope, title.id]);
 
   List<CatalogTitle> apply(List<CatalogTitle> local, String scope) {
     final grouped = <String, CatalogTitle>{};
@@ -327,7 +368,7 @@ class CatalogMatcher extends ChangeNotifier {
                       : match.manual
                       ? 'TMDB · Confirmed by you'
                       : 'TMDB · Matched'
-                : candidates.containsKey(cacheKey)
+                : candidateKeys.contains(cacheKey)
                 ? 'Review title match'
                 : review
                 ? 'Local grouping · Episodes need review'
@@ -407,13 +448,5 @@ class CatalogMatcher extends ChangeNotifier {
         : a.episodeCode.compareTo(b.episodeCode) != 0
         ? a.episodeCode.compareTo(b.episodeCode)
         : a.id.compareTo(b.id);
-  }
-
-  @override
-  void dispose() {
-    _disposed = true;
-    _generation++;
-    _source?.dispose();
-    super.dispose();
   }
 }

@@ -37,7 +37,7 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
-                "loadPreferences" -> result.success(preferences.getString("library", "{}"))
+                "loadPreferences" -> preferencesResult(result) { preferences.getString("library", "{}") }
                 "savePreferences" -> {
                     val value = call.argument<String>("value")
                     if (value == null) result.error("INVALID_ARGUMENT", "Missing preferences.", null)
@@ -115,13 +115,13 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
     }
 
     private fun preferencesResult(result: MethodChannel.Result, operation: () -> Any?) {
-        // Every preferences write uses the same serial queue and completes after durable commit.
+        // Reads can wait for initial disk loading; keep them on the same queue as durable writes.
         metadataExecutor.execute {
             val outcome = runCatching(operation)
             main.post {
                 if (!closed) outcome.fold(
                     onSuccess = { result.success(it) },
-                    onFailure = { result.error("PREFERENCES_STORAGE_ERROR", "Could not save the library preferences.", null) },
+                    onFailure = { result.error("PREFERENCES_STORAGE_ERROR", "Could not access the library preferences.", null) },
                 )
             }
         }

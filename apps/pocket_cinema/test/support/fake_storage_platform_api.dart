@@ -11,11 +11,15 @@ final class FakeStoragePlatformApi implements StoragePlatformApi {
     this.chooseResult,
     this.chooseError,
     this.probeError,
+    this.onStartScan,
+    this.onCancelScan,
   });
 
   final AuthorizedRootDto? chooseResult;
   final Object? chooseError;
   final Object? probeError;
+  final Future<void> Function(String scanId)? onStartScan;
+  final Future<void> Function(String scanId)? onCancelScan;
 
   @override
   Future<AuthorizedRootDto> chooseDirectory() async {
@@ -27,7 +31,9 @@ final class FakeStoragePlatformApi implements StoragePlatformApi {
   }
 
   @override
-  Future<void> startScan(String treeUri, String scanId, int batchSize) async {}
+  Future<void> startScan(String treeUri, String scanId, int batchSize) async {
+    await onStartScan?.call(scanId);
+  }
 
   @override
   Future<ProbeResultDto> probeFile(String treeUri, String storageKey) async {
@@ -39,7 +45,8 @@ final class FakeStoragePlatformApi implements StoragePlatformApi {
 
   @override
   Future<void> cancelScan(String scanId) =>
-      throw StateError('Unexpected platform call: cancelScan');
+      onCancelScan?.call(scanId) ??
+      (throw StateError('Unexpected platform call: cancelScan'));
 
   @override
   Future<RootAccessDto> checkRoot(String treeUri) =>

@@ -9,6 +9,7 @@ import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 import 'package:pocket_cinema/features/catalog/cinema_player.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_state.dart';
 
+import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
 import 'catalog_library_test.dart' as files;
 import 'catalog_screen_test.dart' as screens;
@@ -100,24 +101,24 @@ void main() {
           _Routes(),
         ),
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
 
       expect(_titleOrder(tester), ['Zulu', 'Beta Show', 'Gamma Show', 'Alpha']);
       expect(_selectedTitle(tester), 'Zulu');
       expect(find.text('1 / 4'), findsOneWidget);
       await tester.tap(find.byKey(const Key('jukebox-next')));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Beta Show');
 
       await tester.ensureVisible(find.text('A–Z'));
       await tester.tap(find.text('A–Z'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       await tester.scrollUntilVisible(
         find.byKey(const Key('jukebox-title')),
         -250,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Zulu', 'Alpha', 'Gamma Show']);
       expect(_selectedTitle(tester), 'Beta Show');
       expect(find.text('1 / 4'), findsOneWidget);
@@ -127,18 +128,18 @@ void main() {
         -250,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       await tester.tap(find.text('Movies'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_titleOrder(tester), ['Zulu', 'Alpha']);
       expect(_selectedTitle(tester), 'Zulu');
       expect(find.text('1 / 2'), findsOneWidget);
       await tester.tap(find.text('TV Shows'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Gamma Show']);
       expect(_selectedTitle(tester), 'Beta Show');
       await tester.tap(find.text('Watchlist'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Zulu']);
       expect(tester.takeException(), isNull);
     },
@@ -162,7 +163,7 @@ void main() {
     await tester.pumpWidget(
       _app(fixtures.filesAvailableState.copyWith(entries: entries), _Routes()),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Zulu');
 
     preferences.complete(
@@ -172,7 +173,7 @@ void main() {
         'durations': {unsaved.storageKey: 120},
       }),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_titleOrder(tester), ['My Show', 'Zulu']);
     expect(_selectedTitle(tester), 'My Show');
     expect(find.text('1 / 2'), findsOneWidget);
@@ -194,7 +195,7 @@ void main() {
       findsOneWidget,
     );
     await tester.tap(find.byKey(const Key('jukebox-stage')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(
       tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.id,
       savedTitle.id,
@@ -221,7 +222,7 @@ void main() {
         routes,
       ),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Zulu');
     expect(find.text('1 / 2'), findsOneWidget);
 
@@ -231,7 +232,7 @@ void main() {
         'durations': {resumed.storageKey: 120},
       }),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Alpha');
     expect(find.text('2 / 2'), findsOneWidget);
     expect(
@@ -248,7 +249,7 @@ void main() {
     final hero = tester.widget<JukeboxHero>(find.byType(JukeboxHero));
     final selected = hero.selectedTitle;
     await tester.tap(find.byKey(const Key('jukebox-watchlist')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(hero.library.isSaved(selected), isTrue);
     expect(
       hero.library.isSaved(
@@ -258,13 +259,13 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('jukebox-stage')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(
       tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.id,
       selected.id,
     );
     Navigator.of(tester.element(find.byType(CatalogDetail))).pop();
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
 
     final playContext = tester.element(find.byKey(const Key('jukebox-play')));
     await tester.tap(find.byKey(const Key('jukebox-play')));
@@ -293,10 +294,10 @@ void main() {
             _Routes(),
           ),
         );
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
         if (isSeries) {
           await tester.tap(find.byKey(const Key('jukebox-next')));
-          await tester.pumpAndSettle();
+          await settleCatalog(tester);
         }
         final selected = tester
             .widget<JukeboxHero>(find.byType(JukeboxHero))
@@ -304,7 +305,7 @@ void main() {
         expect(selected.isSeries, isSeries);
 
         await tester.tap(find.byKey(const Key('jukebox-stage')));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
 
         final detail = tester.widget<CatalogDetail>(find.byType(CatalogDetail));
         expect(detail.title.id, selected.id);
@@ -318,7 +319,7 @@ void main() {
             scrollable: find.byType(Scrollable).first,
           );
           await tester.tap(find.text('Season 2'));
-          await tester.pumpAndSettle();
+          await settleCatalog(tester);
           expect(find.text('Return'), findsOneWidget);
           expect(find.text('Start'), findsNothing);
         }
@@ -343,19 +344,19 @@ void main() {
         routes,
       ),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     final firstTitle = tester
         .widget<JukeboxHero>(find.byType(JukeboxHero))
         .selectedTitle;
     expect(_selectedTitle(tester), 'Zulu');
     await tester.tap(find.byKey(const Key('jukebox-next')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Alpha');
     final selectedHero = tester.widget<JukeboxHero>(find.byType(JukeboxHero));
     final selected = selectedHero.selectedTitle;
 
     await tester.tap(find.byKey(const Key('jukebox-watchlist')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(selectedHero.library.isSaved(selected), isTrue);
     expect(selectedHero.library.isSaved(firstTitle), isFalse);
     expect(_titleOrder(tester), ['Alpha', 'Zulu']);
@@ -367,17 +368,17 @@ void main() {
     );
 
     await tester.tap(find.byKey(const Key('jukebox-details')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(
       tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.id,
       selected.id,
     );
     Navigator.of(tester.element(find.byType(CatalogDetail))).pop();
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Alpha');
 
     await tester.tap(find.byKey(const Key('jukebox-watchlist')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(selectedHero.library.isSaved(selected), isFalse);
     expect(_titleOrder(tester), ['Zulu', 'Alpha']);
     expect(_selectedTitle(tester), 'Alpha');
@@ -420,21 +421,21 @@ void main() {
           _Routes(),
         ),
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       await tester.tap(find.byKey(const Key('jukebox-next')));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
       expect(find.text('2 / 3'), findsOneWidget);
 
       await tester.ensureVisible(find.text('A–Z'));
       await tester.tap(find.text('A–Z'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       await tester.scrollUntilVisible(
         find.byKey(const Key('jukebox-title')),
         -250,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
       expect(find.text('1 / 3'), findsOneWidget);
 
@@ -443,14 +444,14 @@ void main() {
         -250,
         scrollable: find.byType(Scrollable).first,
       );
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       await tester.tap(find.text('Movies'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
       expect(find.text('1 / 2'), findsOneWidget);
 
       await tester.tap(find.text('TV Shows'));
-      await tester.pumpAndSettle();
+      await settleCatalog(tester);
       expect(_selectedTitle(tester), 'My Show');
       expect(find.text('1 / 1'), findsOneWidget);
       expect(find.text('Only title'), findsOneWidget);

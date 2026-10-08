@@ -95,58 +95,110 @@ final class AndroidStorageGateway implements LibraryStorageGateway {
     required LibraryRootLocator root,
     required String scanId,
     required CancellationToken cancellationToken,
-  }) async* {
+  }) {
     var terminal = false;
-    try {
-      await _api.startScan(root.opaqueValue, scanId, _scanBatchSize);
-      unawaited(
-        cancellationToken.whenCancelled.then((_) async {
-          if (!terminal) {
-            try {
-              await _api.cancelScan(scanId);
-            } on Object {
-              // The native terminal event remains the source of scan state.
-            }
-          }
-        }),
-      );
+    var started = false;
+    var stopped = false;
+    var cancelRequested = false;
+    final bufferedEvents = StreamController<Map<Object?, Object?>>();
+    StreamSubscription<Map<Object?, Object?>>? eventSubscription;
+    StreamSubscription<Map<Object?, Object?>>? bufferedSubscription;
+    Future<void>? cleanupFuture;
+    late final StreamController<StorageScanEvent> output;
 
-      await for (final raw in _scanEvents) {
-        if (terminal || raw['scanId'] != scanId) {
-          continue;
-        }
+    Future<void> cancelNativeScan() async {
+      if (!started || terminal || cancelRequested) return;
+      cancelRequested = true;
+      try {
+        await _api.cancelScan(scanId);
+      } on Object {
+        // The native terminal event remains the source of scan state.
+      }
+    }
+
+    Future<void> cleanup() async {
+      stopped = true;
+      await eventSubscription?.cancel();
+      await bufferedSubscription?.cancel();
+      unawaited(bufferedEvents.close());
+      await cancelNativeScan();
+    }
+
+    Future<void> finish() async {
+      await (cleanupFuture ??= cleanup());
+      unawaited(output.close());
+    }
+
+    void fail(Object error) {
+      if (stopped) return;
+      output.add(
+        StorageScanFailed(
+          scanId,
+          error is PlatformException
+              ? mapPlatformFailure(error)
+              : const AppFailure(
+                  code: 'STORAGE_OPERATION_FAILED',
+                  messageKey: 'storageOperationFailed',
+                  retryable: true,
+                  safeDetail: 'Android storage operation failed unexpectedly.',
+                ),
+        ),
+      );
+      unawaited(finish());
+    }
+
+    void receive(Map<Object?, Object?> raw) {
+      if (stopped || raw['scanId'] != scanId) return;
+      try {
         final event = _mapScanEvent(raw, scanId);
-        if (event == null) {
-          continue;
-        }
-        yield event;
+        if (event == null) return;
         terminal =
             event is StorageScanCompleted ||
             event is StorageScanCancelled ||
             event is StorageScanFailed;
-        if (terminal) {
-          break;
-        }
+        output.add(event);
+        if (terminal) unawaited(finish());
+      } on Object catch (error) {
+        fail(error);
       }
-    } on PlatformException catch (error) {
-      if (!terminal) {
-        yield StorageScanFailed(scanId, mapPlatformFailure(error));
-      }
-    } on Object {
-      if (!terminal) {
-        yield StorageScanFailed(
-          scanId,
-          const AppFailure(
-            code: 'STORAGE_OPERATION_FAILED',
-            messageKey: 'storageOperationFailed',
-            retryable: true,
-            safeDetail: 'Android storage operation failed unexpectedly.',
-          ),
-        );
-      }
-    } finally {
-      terminal = true;
     }
+
+    Future<void> start() async {
+      try {
+        // A fast native scan can publish batches before startScan returns.
+        // Subscribe first and buffer those events until the command completes.
+        eventSubscription = _scanEvents.listen(
+          bufferedEvents.add,
+          onError: bufferedEvents.addError,
+          onDone: () => unawaited(bufferedEvents.close()),
+        );
+        await _api.startScan(root.opaqueValue, scanId, _scanBatchSize);
+        started = true;
+        if (stopped) {
+          await cancelNativeScan();
+          return;
+        }
+        unawaited(
+          cancellationToken.whenCancelled.then((_) => cancelNativeScan()),
+        );
+        bufferedSubscription = bufferedEvents.stream.listen(
+          receive,
+          onError: (Object error) => fail(error),
+          onDone: () => unawaited(finish()),
+        );
+        if (output.isPaused) bufferedSubscription!.pause();
+      } on Object catch (error) {
+        fail(error);
+      }
+    }
+
+    output = StreamController<StorageScanEvent>(
+      onListen: () => unawaited(start()),
+      onPause: () => bufferedSubscription?.pause(),
+      onResume: () => bufferedSubscription?.resume(),
+      onCancel: () => cleanupFuture ??= cleanup(),
+    );
+    return output.stream;
   }
 
   @override

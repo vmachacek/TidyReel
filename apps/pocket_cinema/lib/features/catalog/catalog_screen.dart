@@ -89,10 +89,11 @@ class _CatalogScreenState extends State<CatalogScreen> {
     animation: Listenable.merge([widget.controller, library]),
     builder: (context) {
       final state = widget.controller.state;
-      final busy =
+      final scanning =
           state.phase == RiskSpikePhase.enumerating ||
           state.phase == RiskSpikePhase.choosingRoot ||
           state.phase == RiskSpikePhase.checkingGrant;
+      final busy = scanning || library.isDiscovering;
       if (state.root == null || state.canRepairRoot) {
         return Scaffold(
           appBar: AppBar(
@@ -364,7 +365,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   const LinearProgressIndicator(),
                   const SizedBox(height: 12),
                   Text(
-                    'Scanning · ${state.discoveredCount} files discovered',
+                    scanning
+                        ? 'Scanning · ${state.discoveredCount} files discovered'
+                        : 'Organizing your library…',
                     style: const TextStyle(color: peach),
                   ),
                   if (state.canCancel)
@@ -372,6 +375,13 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       onPressed: widget.controller.cancelScan,
                       child: const Text('Cancel scan'),
                     ),
+                ],
+                if (library.discoveryError != null) ...[
+                  const Text(
+                    'Could not organize your library. Try scanning again.',
+                    style: TextStyle(color: peach),
+                  ),
+                  const SizedBox(height: 20),
                 ],
                 if (spotlight != null && query.isEmpty && destination == 0) ...[
                   JukeboxHero(
@@ -421,7 +431,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ),
                   ],
                 ),
-                if (all.isEmpty && !busy) emptyLibrary(state.scanCompleted),
+                if (all.isEmpty && !busy && library.discoveryError == null)
+                  emptyLibrary(state.scanCompleted),
                 if (all.isNotEmpty && visible.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(32),

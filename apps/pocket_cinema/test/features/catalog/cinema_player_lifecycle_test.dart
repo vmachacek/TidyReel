@@ -11,6 +11,7 @@ import 'package:pocket_cinema/features/catalog/cinema_player.dart';
 import 'package:pocket_cinema/features/risk_spike/playback_session_coordinator.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_controller.dart';
 
+import '../../support/catalog_discovery.dart';
 import '../risk_spike/playback_session_coordinator_test.dart'
     show directLease, FakePlaybackEngineFactory;
 import '../risk_spike/risk_spike_screen_test.dart' show filesAvailableState;
@@ -149,7 +150,7 @@ void main() {
     // Cover the catalog first so this fixture tests lifecycle handling without
     // involving catalog rebuilds during the player route's initialization.
     navigator.push(MaterialPageRoute<void>(builder: (_) => const SizedBox()));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     navigator.pushReplacement(
       MaterialPageRoute<void>(
         builder: (_) => CinemaPlayer(
@@ -164,7 +165,7 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     return (controller: controller, engine: engine, storage: storage);
   }
 
@@ -232,7 +233,7 @@ void main() {
         expect(tester.takeException(), isNull);
 
         await tester.tap(find.byTooltip('Back to library'));
-        await tester.pumpAndSettle();
+        await settleCatalog(tester);
         expect(find.byType(CinemaPlayer), findsNothing);
         expect(fixture.engine.disposals, 1);
         expect(fixture.storage.releases, 1);
@@ -256,7 +257,7 @@ void main() {
     expect(fixture.engine.disposals, 1);
     expect(fixture.storage.releases, 1);
     await tester.tap(find.byTooltip('Back to library'));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     expect(fixture.engine.disposals, 1);

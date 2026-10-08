@@ -9,6 +9,7 @@ import 'package:pocket_cinema/features/risk_spike/risk_spike_screen.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_state.dart';
 import 'package:pocket_cinema/l10n/app_localizations.dart';
 
+import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
 import 'catalog_library_test.dart' as files;
 
@@ -24,23 +25,47 @@ Widget app(RiskSpikeState state) {
 }
 
 void main() {
+  testWidgets('catalog discovery keeps navigation responsive', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(390, 844));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    await tester.pumpWidget(app(fixtures.filesAvailableState));
+
+    expect(catalogLibrary(tester).isDiscovering, isTrue);
+    expect(find.text('Organizing your library…'), findsOneWidget);
+    expect(find.text('No videos found'), findsNothing);
+
+    await tester.tap(find.text('Library').last);
+    await tester.pump();
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      1,
+    );
+    expect(catalogLibrary(tester).isDiscovering, isTrue);
+
+    await settleCatalog(tester);
+    expect(catalogLibrary(tester).isDiscovering, isFalse);
+    expect(find.text('Organizing your library…'), findsNothing);
+    expect(find.byType(PosterCard), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('Empty Home shows folder connection and links to diagnostics', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(390, 844));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(app(const RiskSpikeState()));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Connect media folder'), findsOneWidget);
     expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
     expect(find.textContaining('Astro Kid'), findsNothing);
     expect(find.textContaining('SpongeBob'), findsNothing);
     await tester.tap(find.byTooltip('Diagnostics'));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.byType(RiskSpikeScreen), findsOneWidget);
     await tester.tap(find.byKey(const Key('diagnostics-home-button')));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Connect media folder'), findsOneWidget);
     expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
@@ -50,16 +75,16 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(app(fixtures.filesAvailableState));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.drag(find.byType(ListView).first, const Offset(0, -500));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.byType(PosterCard), findsOneWidget);
     expect(find.text('Movie'), findsWidgets);
     expect(find.textContaining('Astro Kid'), findsNothing);
     await tester.drag(find.byType(ListView).first, const Offset(0, 700));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.enterText(find.byType(TextField), 'missing');
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Movie.mp4'), findsNothing);
     expect(find.text('No videos match your search.'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -77,22 +102,22 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.scrollUntilVisible(
       find.byType(PosterCard).hitTestable(),
       300,
       scrollable: find.byType(Scrollable).first,
     );
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     await tester.tap(find.byType(PosterCard));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.byType(CatalogDetail), findsOneWidget);
     await tester.drag(find.byType(ListView).first, const Offset(0, -400));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Season 1'), findsOneWidget);
     expect(find.text('Start'), findsOneWidget);
     await tester.tap(find.text('Season 2'));
-    await tester.pumpAndSettle();
+    await settleCatalog(tester);
     expect(find.text('Return'), findsOneWidget);
     expect(find.text('Start'), findsNothing);
     expect(tester.takeException(), isNull);

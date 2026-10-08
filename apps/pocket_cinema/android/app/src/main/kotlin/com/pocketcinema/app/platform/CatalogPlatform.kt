@@ -10,11 +10,13 @@ import android.provider.DocumentsContract
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import android.util.AtomicFile
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
 import android.os.Handler
 import android.os.Looper
 import java.io.ByteArrayOutputStream
+import java.io.FileNotFoundException
 import java.security.KeyStore
 import java.util.concurrent.Executors
 import javax.crypto.Cipher
@@ -29,14 +31,40 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
     private val metadataPreferences = context.getSharedPreferences("cinema_metadata_credentials", Context.MODE_PRIVATE)
     private val executor = Executors.newFixedThreadPool(2)
     private val metadataExecutor = Executors.newSingleThreadExecutor()
+    private val inventoryExecutor = Executors.newSingleThreadExecutor()
     private val main = Handler(Looper.getMainLooper())
     private val channel = MethodChannel(messenger, "com.pocketcinema.app/catalog")
     private val artwork = ArtworkStore(context.filesDir.resolve("catalog_artwork"), ::validateArtworkImage)
+    private val scanInventory = AtomicFile(context.filesDir.resolve("scan_inventory.json"))
     @Volatile private var closed = false
 
     init {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
+                "loadScanInventory" -> inventoryResult(result) {
+                    try {
+                        scanInventory.openRead().use { it.readBytes().toString(Charsets.UTF_8) }
+                    } catch (_: FileNotFoundException) {
+                        null
+                    }
+                }
+                "saveScanInventory" -> {
+                    val value = call.argument<String>("value")
+                    if (value == null) result.error("INVALID_ARGUMENT", "Missing scan inventory.", null)
+                    else inventoryResult(result) {
+                        val output = scanInventory.startWrite()
+                        try {
+                            output.write(value.toByteArray(Charsets.UTF_8))
+                            output.fd.sync()
+                            scanInventory.finishWrite(output)
+                        } catch (error: Throwable) {
+                            scanInventory.failWrite(output)
+                            throw error
+                        }
+                        null
+                    }
+                }
+                "clearScanInventory" -> inventoryResult(result) { scanInventory.delete(); null }
                 "loadPreferences" -> preferencesResult(result) { preferences.getString("library", "{}") }
                 "savePreferences" -> {
                     val value = call.argument<String>("value")
@@ -170,6 +198,20 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
         } finally { retriever.release() }
     }
 
+    private fun inventoryResult(result: MethodChannel.Result, operation: () -> Any?) {
+        // Serialize disk access separately from artwork and credentials so a
+        // completed inventory is replaced atomically without blocking startup.
+        inventoryExecutor.execute {
+            val outcome = runCatching { synchronized(scanInventoryLock) { operation() } }
+            main.post {
+                if (!closed) outcome.fold(
+                    onSuccess = { result.success(it) },
+                    onFailure = { result.error("SCAN_INVENTORY_STORAGE_ERROR", "Could not access the saved library scan.", null) },
+                )
+            }
+        }
+    }
+
     private fun preferencesResult(result: MethodChannel.Result, operation: () -> Any?) {
         // Reads can wait for initial disk loading; keep them on the same queue as durable writes.
         metadataExecutor.execute {
@@ -267,9 +309,18 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
         }
     }
 
-    fun close() { closed = true; channel.setMethodCallHandler(null); executor.shutdownNow(); metadataExecutor.shutdownNow() }
+    fun close() {
+        closed = true
+        channel.setMethodCallHandler(null)
+        executor.shutdownNow()
+        metadataExecutor.shutdownNow()
+        // Let an accepted durable write finish even when the engine detaches.
+        inventoryExecutor.shutdown()
+    }
 
     private companion object {
+        // A new engine can attach while the previous engine finishes its write.
+        val scanInventoryLock = Any()
         const val METADATA_KEY_ALIAS = "com.pocketcinema.app.tmdb_token.v1"
     }
 }

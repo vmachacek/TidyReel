@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:isolate';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -113,6 +114,80 @@ void main() {
     });
     return result;
   }
+
+  test(
+    'first discovery uses restored preferences and cached matches',
+    () async {
+      final restored = Completer<String>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+            if (call.method == 'loadPreferences') return restored.future;
+            return null;
+          });
+      final worker = _PendingWorker();
+      final catalog = library([
+        files.file('My Show/Season 1/S01E01.mkv'),
+      ], worker);
+      expect(catalog.isRestoringPreferences, isTrue);
+      await _tick();
+      expect(worker.requests, isEmpty);
+      expect(catalog.currentTitles, isEmpty);
+
+      restored.complete(
+        jsonEncode({
+          'homeView': 'cards',
+          'saved': ['series:my show'],
+          'positions': {'video': 42},
+          'titleMatches': {
+            '["root","series:my show"]': const CatalogResolvedMatch(
+              CatalogMetadataCandidate(providerId: '42', name: 'Cached Show'),
+              [],
+            ).toJson(),
+          },
+        }),
+      );
+      await catalog.load();
+      await _tick();
+      expect(catalog.isRestoringPreferences, isFalse);
+      expect(catalog.homeView, CatalogHomeView.cards);
+      expect(catalog.saved, {'series:my show'});
+      expect(catalog.positions, {'video': 42});
+      expect(worker.requests, hasLength(1));
+      expect(worker.requests.single.matching.matches, hasLength(1));
+      worker.complete(0);
+      await catalog.waitForDiscovery();
+      expect(catalog.currentTitles.single.name, 'Cached Show');
+      expect(worker.requests, hasLength(1));
+    },
+  );
+
+  test(
+    'optional credential loading does not hold the first presentation',
+    () async {
+      final tokenRequested = Completer<void>();
+      final token = Completer<String?>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+            if (call.method == 'loadPreferences') return '{}';
+            if (call.method == 'loadMetadataToken') {
+              tokenRequested.complete();
+              return token.future;
+            }
+            return null;
+          });
+      final worker = _PendingWorker();
+      final catalog = library([files.file('Movie.mkv')], worker);
+      await tokenRequested.future;
+      await _tick();
+      expect(catalog.isRestoringPreferences, isFalse);
+      expect(worker.requests, hasLength(1));
+      worker.complete(0);
+      await catalog.waitForDiscovery();
+      expect(catalog.currentTitles.single.name, 'Movie');
+      token.complete(null);
+      await catalog.load();
+    },
+  );
 
   test('parsing and canonical grouping run on a separate isolate', () async {
     final entries = [
@@ -293,10 +368,7 @@ void main() {
       final catalog = library([files.file('Movie.mkv')], worker);
       await catalog.load();
       await _tick();
-      // Preferences were restored during the first request; let its replacement
-      // fail so the error belongs to the latest revision.
-      worker.complete(0);
-      await _tick();
+      expect(worker.requests, hasLength(1));
       worker.completions.last.completeError(StateError('Worker unavailable'));
       await catalog.waitForDiscovery();
       expect(catalog.isDiscovering, isFalse);

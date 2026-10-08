@@ -76,12 +76,20 @@ void main() {
   ) async {
     await tester.pumpWidget(app(fixtures.filesAvailableState));
     await settleCatalog(tester);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -500));
+    await tester.scrollUntilVisible(
+      find.byType(PosterCard),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await settleCatalog(tester);
     expect(find.byType(PosterCard), findsOneWidget);
     expect(find.text('Movie'), findsWidgets);
     expect(find.textContaining('Astro Kid'), findsNothing);
-    await tester.drag(find.byType(ListView).first, const Offset(0, 700));
+    await tester.scrollUntilVisible(
+      find.byType(TextField),
+      -250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await settleCatalog(tester);
     await tester.enterText(find.byType(TextField), 'missing');
     await settleCatalog(tester);

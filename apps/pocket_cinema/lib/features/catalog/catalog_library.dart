@@ -201,6 +201,8 @@ class CatalogLibrary extends ChangeNotifier {
   final bool _injectedSource;
   Future<void>? _loading;
   final _preferencesRestored = Completer<void>();
+  bool get isRestoringPreferences =>
+      !_disposed && !_preferencesRestored.isCompleted;
   List<StorageEntrySnapshot>? _catalogEntries;
   List<CatalogTitle> _localTitles = const [];
   List<CatalogTitle> _presentationTitles = const [];
@@ -278,6 +280,9 @@ class CatalogLibrary extends ChangeNotifier {
   Future<void> _runDiscovery() async {
     _discoveryRunning = true;
     try {
+      // Restore the saved view, progress and canonical matches before the
+      // first presentation. Optional token/network work must not delay it.
+      await _preferencesRestored.future;
       while (_discoveryRequested && !_disposed) {
         _discoveryRequested = false;
         final revision = _catalogRevision;
@@ -477,7 +482,8 @@ class CatalogLibrary extends ChangeNotifier {
     } on Object {
       /* Preferences are optional on non-Android test hosts. */
     } finally {
-      _preferencesRestored.complete();
+      if (!_preferencesRestored.isCompleted) _preferencesRestored.complete();
+      if (!_disposed) notifyListeners();
     }
     if (!_injectedSource && !_disposed) {
       try {
@@ -1037,6 +1043,7 @@ class CatalogLibrary extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _catalogRevision++;
+    if (!_preferencesRestored.isCompleted) _preferencesRestored.complete();
     controller.removeListener(_controllerChanged);
     _discoveryIdle?.complete();
     _discoveryIdle = null;

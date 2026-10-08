@@ -13,6 +13,7 @@ import '../risk_spike/widgets/failure_panel.dart';
 import 'catalog_artwork_picker.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
+import 'catalog_skeleton.dart';
 import 'cinema_player.dart';
 import 'jukebox_carousel.dart';
 import 'route_content_builder.dart';
@@ -39,6 +40,8 @@ class _CatalogScreenState extends State<CatalogScreen> {
   bool listView = false;
   int destination = 0;
   String? featuredTitleId;
+  String? presentedScope;
+  bool hasPresentedCatalog = false;
   List<CatalogTitle> titlesFor(List<StorageEntrySnapshot> entries) =>
       library.titlesFor(entries);
 
@@ -95,8 +98,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
           state.phase == RiskSpikePhase.enumerating ||
           state.phase == RiskSpikePhase.choosingRoot ||
           state.phase == RiskSpikePhase.checkingGrant;
-      final busy = scanning || library.isDiscovering;
-      if (state.root == null || state.canRepairRoot) {
+      final busy =
+          scanning || library.isDiscovering || library.isRestoringPreferences;
+      if ((state.root == null && state.phase != RiskSpikePhase.checkingGrant) ||
+          state.canRepairRoot) {
         return Scaffold(
           appBar: AppBar(
             title: const AppBrand(),
@@ -224,6 +229,23 @@ class _CatalogScreenState extends State<CatalogScreen> {
       }
 
       final all = titlesFor(state.entries);
+      final scope = state.root?.locator.opaqueValue;
+      if (presentedScope != scope) {
+        presentedScope = scope;
+        hasPresentedCatalog = false;
+      }
+      if (state.scanCompleted &&
+          !library.isDiscovering &&
+          !library.isRestoringPreferences) {
+        hasPresentedCatalog = true;
+      }
+      final initialLoading =
+          state.phase == RiskSpikePhase.checkingGrant ||
+          (!hasPresentedCatalog &&
+              (library.isRestoringPreferences ||
+                  library.isDiscovering ||
+                  state.phase == RiskSpikePhase.ready ||
+                  state.phase == RiskSpikePhase.enumerating));
       final visible = all
           .where(
             (t) =>
@@ -314,185 +336,257 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 ],
               )
             : null,
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1440),
-            child: ListView(
-              padding: EdgeInsets.all(
-                MediaQuery.sizeOf(context).width < 600 ? 16 : 32,
-              ),
-              children: [
-                Wrap(
-                  spacing: 10,
-                  runSpacing: 12,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    for (final tab in [
-                      'All',
-                      'Movies',
-                      'TV Shows',
-                      'Watchlist',
-                    ])
-                      ChoiceChip(
-                        label: Text(tab),
-                        selected: filter == tab,
-                        onSelected: (_) => setState(() => filter = tab),
-                      ),
-                    SizedBox(
-                      width: 280,
-                      child: TextField(
-                        onChanged: (v) => setState(() => query = v),
-                        decoration: const InputDecoration(
-                          prefixIcon: Icon(Icons.search),
-                          hintText: 'Search your library…',
-                          isDense: true,
-                        ),
-                      ),
-                    ),
-                    chip('LOCAL STORAGE • ${state.root!.displayName}'),
-                    IconButton(
-                      onPressed: settings,
-                      tooltip: 'Library settings',
-                      icon: const Icon(Icons.tune),
-                    ),
-                    if (destination == 0)
-                      SegmentedButton<CatalogHomeView>(
-                        key: const Key('home-view-switch'),
-                        segments: const [
-                          ButtonSegment(
-                            value: CatalogHomeView.carousel,
-                            icon: Icon(Icons.view_carousel_outlined),
-                            label: Text(
-                              'Carousel',
-                              key: Key('home-view-carousel'),
-                            ),
-                            tooltip: 'Browse the carousel',
-                          ),
-                          ButtonSegment(
-                            value: CatalogHomeView.cards,
-                            icon: Icon(Icons.grid_view_outlined),
-                            label: Text('Cards', key: Key('home-view-cards')),
-                            tooltip: 'Browse title cards',
-                          ),
-                        ],
-                        selected: {library.homeView},
-                        onSelectionChanged: (selection) =>
-                            unawaited(library.setHomeView(selection.single)),
-                        showSelectedIcon: false,
-                        style: SegmentedButton.styleFrom(
-                          foregroundColor: peach,
-                          backgroundColor: panel,
-                          selectedForegroundColor: Colors.white,
-                          selectedBackgroundColor: const Color(0x33FF5A36),
-                          side: const BorderSide(color: Color(0xFF32353D)),
-                          minimumSize: const Size(48, 48),
-                        ),
-                      ),
-                  ],
+        body: Semantics(
+          key: const Key('catalog-body'),
+          container: true,
+          label: initialLoading ? 'Loading your library' : null,
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1440),
+              child: ListView(
+                key: const Key('catalog-scroll'),
+                padding: EdgeInsets.all(
+                  MediaQuery.sizeOf(context).width < 600 ? 16 : 32,
                 ),
-                const SizedBox(height: 24),
-                if (state.failure != null) ...[
-                  FailurePanel(
-                    failure: state.failure!,
-                    controller: widget.controller,
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (busy) ...[
-                  const LinearProgressIndicator(),
-                  const SizedBox(height: 12),
-                  Text(
-                    scanning
-                        ? 'Scanning · ${state.discoveredCount} files discovered'
-                        : 'Organizing your library…',
-                    style: const TextStyle(color: peach),
-                  ),
-                  if (state.canCancel)
-                    TextButton(
-                      onPressed: widget.controller.cancelScan,
-                      child: const Text('Cancel scan'),
-                    ),
-                ],
-                if (library.discoveryError != null) ...[
-                  const Text(
-                    'Could not organize your library. Try scanning again.',
-                    style: TextStyle(color: peach),
-                  ),
-                  const SizedBox(height: 20),
-                ],
-                if (spotlight != null &&
-                    query.isEmpty &&
-                    destination == 0 &&
-                    library.homeView == CatalogHomeView.carousel) ...[
-                  JukeboxHero(
-                    titles: carouselTitles,
-                    selectedTitle: spotlight,
-                    library: library,
-                    onSelected: (title) =>
-                        setState(() => featuredTitleId = title.id),
-                    onDetails: () => details(spotlight),
-                    onPlay: () => openVideo(
-                      context,
-                      library,
-                      library.next(spotlight),
-                      widget.playbackSurface,
-                      queue: spotlight.videos,
-                    ),
+                children: [
+                  Wrap(
+                    spacing: 10,
+                    runSpacing: 12,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      for (final tab in [
+                        'All',
+                        'Movies',
+                        'TV Shows',
+                        'Watchlist',
+                      ])
+                        ChoiceChip(
+                          label: Text(tab),
+                          selected: filter == tab,
+                          onSelected: (_) => setState(() => filter = tab),
+                        ),
+                      SizedBox(
+                        width: 280,
+                        child: TextField(
+                          onChanged: (v) => setState(() => query = v),
+                          decoration: const InputDecoration(
+                            prefixIcon: Icon(Icons.search),
+                            hintText: 'Search your library…',
+                            isDense: true,
+                          ),
+                        ),
+                      ),
+                      SizedBox(
+                        width: 240,
+                        child: chip(
+                          'LOCAL STORAGE • ${state.root?.displayName ?? 'Restoring folder…'}',
+                          maxLines: 1,
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: settings,
+                        tooltip: 'Library settings',
+                        icon: const Icon(Icons.tune),
+                      ),
+                      if (destination == 0)
+                        Visibility(
+                          visible: !library.isRestoringPreferences,
+                          maintainState: true,
+                          maintainAnimation: true,
+                          maintainSize: true,
+                          child: SegmentedButton<CatalogHomeView>(
+                            key: const Key('home-view-switch'),
+                            segments: const [
+                              ButtonSegment(
+                                value: CatalogHomeView.carousel,
+                                icon: Icon(Icons.view_carousel_outlined),
+                                label: Text(
+                                  'Carousel',
+                                  key: Key('home-view-carousel'),
+                                ),
+                                tooltip: 'Browse the carousel',
+                              ),
+                              ButtonSegment(
+                                value: CatalogHomeView.cards,
+                                icon: Icon(Icons.grid_view_outlined),
+                                label: Text(
+                                  'Cards',
+                                  key: Key('home-view-cards'),
+                                ),
+                                tooltip: 'Browse title cards',
+                              ),
+                            ],
+                            selected: {library.homeView},
+                            onSelectionChanged: (selection) => unawaited(
+                              library.setHomeView(selection.single),
+                            ),
+                            showSelectedIcon: false,
+                            style: SegmentedButton.styleFrom(
+                              foregroundColor: peach,
+                              backgroundColor: panel,
+                              selectedForegroundColor: Colors.white,
+                              selectedBackgroundColor: const Color(0x33FF5A36),
+                              side: const BorderSide(color: Color(0xFF32353D)),
+                              minimumSize: const Size(48, 48),
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
                   const SizedBox(height: 24),
-                ],
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  children: [
-                    const Text('Sort by:', style: TextStyle(color: peach)),
-                    for (final option in ['Recently Modified', 'A–Z'])
-                      ChoiceChip(
-                        label: Text(option),
-                        selected: sort == option,
-                        onSelected: (_) => setState(() => sort = option),
-                      ),
-                    Text(
-                      '${visible.length} titles · ${state.entries.length} files',
-                      style: const TextStyle(color: peach, fontSize: 12),
+                  if (state.failure != null) ...[
+                    FailurePanel(
+                      failure: state.failure!,
+                      controller: widget.controller,
                     ),
-                    if (destination != 0 ||
-                        library.homeView == CatalogHomeView.carousel)
-                      IconButton(
-                        onPressed: () => setState(() => listView = !listView),
-                        tooltip: listView ? 'Poster view' : 'List view',
-                        icon: Icon(
-                          listView ? Icons.grid_view : Icons.view_list,
-                        ),
-                      ),
-                    IconButton(
-                      onPressed: state.canRescan
-                          ? () => widget.controller.scan(state.root!)
-                          : null,
-                      tooltip: 'Rescan library',
-                      icon: const Icon(Icons.refresh),
-                    ),
+                    const SizedBox(height: 20),
                   ],
-                ),
-                if (all.isEmpty && !busy && library.discoveryError == null)
-                  emptyLibrary(state.scanCompleted),
-                if (all.isNotEmpty && visible.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.all(32),
-                    child: Text('No videos match your search.'),
+                  SizedBox(
+                    key: const Key('catalog-status-slot'),
+                    height: 48,
+                    child: busy
+                        ? Row(
+                            children: [
+                              const SizedBox(
+                                width: 14,
+                                height: 14,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  state.phase == RiskSpikePhase.checkingGrant
+                                      ? 'Restoring your library…'
+                                      : scanning
+                                      ? 'Scanning · ${state.discoveredCount} files discovered'
+                                      : 'Organizing your library…',
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    color: peach,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                              if (state.canCancel)
+                                IconButton(
+                                  onPressed: widget.controller.cancelScan,
+                                  tooltip: 'Cancel scan',
+                                  icon: const Icon(Icons.close, size: 18),
+                                ),
+                            ],
+                          )
+                        : null,
                   ),
-                if (continuing.isNotEmpty &&
-                    query.isEmpty &&
-                    filter == 'All' &&
-                    destination == 0)
-                  shelf('Continue Watching', continuing),
-                if (filter != 'Movies' && shows.isNotEmpty)
-                  shelf('All TV Shows', shows),
-                if (filter != 'TV Shows' && movies.isNotEmpty)
-                  shelf('All Movies', movies),
-                const SizedBox(height: 32),
-              ],
+                  if (library.discoveryError != null) ...[
+                    const Text(
+                      'Could not organize your library. Try scanning again.',
+                      style: TextStyle(color: peach),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (initialLoading &&
+                      !library.isRestoringPreferences &&
+                      query.isEmpty &&
+                      destination == 0 &&
+                      library.homeView == CatalogHomeView.carousel) ...[
+                    const CatalogHeroSkeleton(),
+                    const SizedBox(height: 24),
+                  ],
+                  if (!initialLoading &&
+                      spotlight != null &&
+                      query.isEmpty &&
+                      destination == 0 &&
+                      library.homeView == CatalogHomeView.carousel) ...[
+                    JukeboxHero(
+                      titles: carouselTitles,
+                      selectedTitle: spotlight,
+                      library: library,
+                      onSelected: (title) =>
+                          setState(() => featuredTitleId = title.id),
+                      onDetails: () => details(spotlight),
+                      onPlay: () => openVideo(
+                        context,
+                        library,
+                        library.next(spotlight),
+                        widget.playbackSurface,
+                        queue: spotlight.videos,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                  ],
+                  Wrap(
+                    key: const Key('catalog-sort-controls'),
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      const Text('Sort by:', style: TextStyle(color: peach)),
+                      for (final option in ['Recently Modified', 'A–Z'])
+                        ChoiceChip(
+                          label: Text(option),
+                          selected: sort == option,
+                          onSelected: (_) => setState(() => sort = option),
+                        ),
+                      Text(
+                        initialLoading
+                            ? 'Loading titles…'
+                            : '${visible.length} titles · ${state.entries.length} files',
+                        style: const TextStyle(color: peach, fontSize: 12),
+                      ),
+                      if (destination != 0 ||
+                          library.homeView == CatalogHomeView.carousel)
+                        IconButton(
+                          onPressed: () => setState(() => listView = !listView),
+                          tooltip: listView ? 'Poster view' : 'List view',
+                          icon: Icon(
+                            listView ? Icons.grid_view : Icons.view_list,
+                          ),
+                        ),
+                      IconButton(
+                        onPressed: !initialLoading && state.canRescan
+                            ? () => widget.controller.scan(state.root!)
+                            : null,
+                        tooltip: 'Rescan library',
+                        icon: const Icon(Icons.refresh),
+                      ),
+                    ],
+                  ),
+                  if (initialLoading)
+                    CatalogShelfSkeleton(
+                      key: const Key('catalog-skeleton-shelf'),
+                      listView:
+                          listView &&
+                          (destination != 0 ||
+                              library.homeView == CatalogHomeView.carousel),
+                    ),
+                  if (!initialLoading &&
+                      all.isEmpty &&
+                      !busy &&
+                      library.discoveryError == null)
+                    emptyLibrary(state.scanCompleted),
+                  if (!initialLoading && all.isNotEmpty && visible.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(32),
+                      child: Text('No videos match your search.'),
+                    ),
+                  if (!initialLoading &&
+                      continuing.isNotEmpty &&
+                      query.isEmpty &&
+                      filter == 'All' &&
+                      destination == 0)
+                    shelf('Continue Watching', continuing),
+                  if (!initialLoading && filter != 'Movies' && shows.isNotEmpty)
+                    shelf('All TV Shows', shows),
+                  if (!initialLoading &&
+                      filter != 'TV Shows' &&
+                      movies.isNotEmpty)
+                    shelf('All Movies', movies),
+                  const SizedBox(height: 32),
+                ],
+              ),
             ),
           ),
         ),
@@ -682,7 +776,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
   );
 }
 
-Widget chip(String label, {Color color = peach}) => Container(
+Widget chip(String label, {Color color = peach, int maxLines = 2}) => Container(
   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
   decoration: BoxDecoration(
     color: const Color(0xCC0B0E16),
@@ -690,7 +784,7 @@ Widget chip(String label, {Color color = peach}) => Container(
   ),
   child: Text(
     label,
-    maxLines: 2,
+    maxLines: maxLines,
     overflow: TextOverflow.ellipsis,
     style: TextStyle(
       color: color,
@@ -717,6 +811,11 @@ Widget section(String name, String detail) => Padding(
       Text(detail, style: const TextStyle(color: peach, fontSize: 12)),
     ],
   ),
+);
+
+Widget _heroMetadataChip(String label, double availableWidth) => ConstrainedBox(
+  constraints: BoxConstraints(maxWidth: (availableWidth - 8) / 2),
+  child: Tooltip(message: label, child: chip(label, maxLines: 1)),
 );
 
 class VideoArtwork extends StatelessWidget {
@@ -970,53 +1069,90 @@ class JukeboxHero extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 760),
           child: Column(
             children: [
-              FutureBuilder<MediaProbeResult?>(
-                key: ValueKey(video.id),
-                future: library.metadata(video),
-                builder: (context, snapshot) {
-                  final metadata = snapshot.data;
-                  return Wrap(
-                    alignment: WrapAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      if (video.year != null) chip('${video.year}'),
-                      chip(
-                        title.isSeries
-                            ? '${title.seasons.length} Seasons · '
-                                  '${title.episodeCount} Episodes'
-                            : 'Movie · ${fileSize(title.sizeBytes)}',
-                      ),
-                      if (metadata?.duration != null)
-                        chip(durationText(metadata!.duration)),
-                      if (metadata?.audioCodecSummary != null)
-                        chip(metadata!.audioCodecSummary!),
-                    ],
-                  );
-                },
+              SizedBox(
+                key: const Key('jukebox-metadata-slot'),
+                height: catalogHeroMetadataHeight(context),
+                child: Center(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) =>
+                        FutureBuilder<MediaProbeResult?>(
+                          key: ValueKey(video.id),
+                          future: library.metadata(video),
+                          builder: (context, snapshot) {
+                            final metadata = snapshot.data;
+                            return Wrap(
+                              alignment: WrapAlignment.center,
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                if (video.year != null)
+                                  _heroMetadataChip(
+                                    '${video.year}',
+                                    constraints.maxWidth,
+                                  ),
+                                _heroMetadataChip(
+                                  title.isSeries
+                                      ? '${title.seasons.length} Seasons · '
+                                            '${title.episodeCount} Episodes'
+                                      : 'Movie · ${fileSize(title.sizeBytes)}',
+                                  constraints.maxWidth,
+                                ),
+                                if (metadata?.duration != null)
+                                  _heroMetadataChip(
+                                    durationText(metadata!.duration),
+                                    constraints.maxWidth,
+                                  ),
+                                if (metadata?.audioCodecSummary != null)
+                                  _heroMetadataChip(
+                                    metadata!.audioCodecSummary!,
+                                    constraints.maxWidth,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                  ),
+                ),
               ),
               const SizedBox(height: 14),
-              Text(
-                title.name,
-                key: const Key('jukebox-title'),
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontFamily: 'Sora',
-                  fontSize: MediaQuery.sizeOf(context).width < 600 ? 26 : 34,
-                  height: 1.2,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -.8,
+              SizedBox(
+                height: catalogHeroTitleHeight(context),
+                child: Center(
+                  child: Text(
+                    title.name,
+                    key: const Key('jukebox-title'),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontFamily: 'Sora',
+                      fontSize: MediaQuery.sizeOf(context).width < 600
+                          ? 26
+                          : 34,
+                      height: 1.2,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -.8,
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
-                title.overview?.isNotEmpty == true
-                    ? title.overview!
-                    : video.file.relativePath,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: Color(0xFFAA8982), height: 1.6),
+              SizedBox(
+                height: catalogHeroOverviewHeight(context),
+                child: Center(
+                  child: Text(
+                    title.overview?.isNotEmpty == true
+                        ? title.overview!
+                        : video.file.relativePath,
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: Color(0xFFAA8982),
+                      height: 1.6,
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 20),
               Wrap(
@@ -1024,38 +1160,44 @@ class JukeboxHero extends StatelessWidget {
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  FilledButton.icon(
-                    key: const Key('jukebox-play'),
-                    onPressed: onPlay,
-                    style: FilledButton.styleFrom(
-                      shape: const StadiumBorder(),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 26,
-                        vertical: 18,
+                  SizedBox.fromSize(
+                    size: catalogHeroActionSize(context),
+                    child: FilledButton.icon(
+                      key: const Key('jukebox-play'),
+                      onPressed: onPlay,
+                      style: FilledButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 26,
+                          vertical: 18,
+                        ),
                       ),
-                    ),
-                    icon: const Icon(Icons.play_arrow),
-                    label: Text(
-                      resume
-                          ? 'Resume'
-                          : title.isSeries
-                          ? 'Play Episode'
-                          : 'Play Movie',
+                      icon: const Icon(Icons.play_arrow),
+                      label: Text(
+                        resume
+                            ? 'Resume'
+                            : title.isSeries
+                            ? 'Play Episode'
+                            : 'Play Movie',
+                      ),
                     ),
                   ),
-                  OutlinedButton.icon(
-                    key: const Key('jukebox-details'),
-                    onPressed: onDetails,
-                    style: OutlinedButton.styleFrom(
-                      shape: const StadiumBorder(),
-                      backgroundColor: panel,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 22,
-                        vertical: 18,
+                  SizedBox.fromSize(
+                    size: catalogHeroActionSize(context, details: true),
+                    child: OutlinedButton.icon(
+                      key: const Key('jukebox-details'),
+                      onPressed: onDetails,
+                      style: OutlinedButton.styleFrom(
+                        shape: const StadiumBorder(),
+                        backgroundColor: panel,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 22,
+                          vertical: 18,
+                        ),
                       ),
+                      icon: const Icon(Icons.graphic_eq),
+                      label: const Text('Details & Audio'),
                     ),
-                    icon: const Icon(Icons.graphic_eq),
-                    label: const Text('Details & Audio'),
                   ),
                   IconButton.filledTonal(
                     key: const Key('jukebox-watchlist'),

@@ -161,9 +161,7 @@ void main() {
     },
   );
 
-  testWidgets('delayed bookmarks move saved shows to the start', (
-    tester,
-  ) async {
+  testWidgets('first carousel waits for saved bookmark order', (tester) async {
     await _tablet(tester);
     final preferences = Completer<String>();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -179,8 +177,9 @@ void main() {
     await tester.pumpWidget(
       _app(fixtures.filesAvailableState.copyWith(entries: entries), _Routes()),
     );
-    await settleCatalog(tester);
-    expect(_selectedTitle(tester), 'Zulu');
+    await tester.pump();
+    expect(catalogLibrary(tester).isRestoringPreferences, isTrue);
+    expect(find.byType(JukeboxHero), findsNothing);
 
     preferences.complete(
       jsonEncode({
@@ -238,9 +237,9 @@ void main() {
         routes,
       ),
     );
-    await settleCatalog(tester);
-    expect(_selectedTitle(tester), 'Zulu');
-    _expectCarouselPosition(tester, 1, 2);
+    await tester.pump();
+    expect(catalogLibrary(tester).isRestoringPreferences, isTrue);
+    expect(find.byType(JukeboxHero), findsNothing);
 
     preferences.complete(
       jsonEncode({

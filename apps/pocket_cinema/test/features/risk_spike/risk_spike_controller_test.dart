@@ -531,6 +531,11 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     this.lease,
     this.releaseRootSucceeds = false,
     this.onOpen,
+    this.persistedRoots = const [],
+    this.accessState = RootAccessState.available,
+    this.onChoose,
+    this.onEnumerate,
+    this.subtitleContent,
   });
 
   factory FakeStorageGateway.scan(List<StorageScanEvent> events) =>
@@ -542,8 +547,17 @@ final class FakeStorageGateway implements LibraryStorageGateway {
   final MediaSourceLease? lease;
   final bool releaseRootSucceeds;
   final Future<void> Function()? onOpen;
+  final List<AuthorizedLibraryRoot> persistedRoots;
+  final RootAccessState accessState;
+  final Future<AppResult<AuthorizedLibraryRoot>> Function()? onChoose;
+  final Stream<StorageScanEvent> Function(String, CancellationToken)?
+  onEnumerate;
+  final SmallFileContent? subtitleContent;
   int activeLeaseCount = 0;
   int openCount = 0;
+  int scanCount = 0;
+  final checkedRoots = <LibraryRootLocator>[];
+  final readKeys = <String>[];
 
   @override
   Stream<StorageScanEvent> enumerateRecursively({
@@ -551,6 +565,11 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     required String scanId,
     required CancellationToken cancellationToken,
   }) async* {
+    scanCount++;
+    if (onEnumerate != null) {
+      yield* onEnumerate!(scanId, cancellationToken);
+      return;
+    }
     for (final event in scanEvents) {
       yield event;
     }
@@ -582,9 +601,13 @@ final class FakeStorageGateway implements LibraryStorageGateway {
     required String storageKey,
     required int maximumBytes,
   }) async {
+    readKeys.add(storageKey);
     final failure = subtitleReadFailure;
     if (failure != null) {
       return FailureResult<SmallFileContent>(failure);
+    }
+    if (subtitleContent != null) {
+      return Success<SmallFileContent>(subtitleContent!);
     }
     throw StateError('Unexpected test call: readSmallFile');
   }
@@ -595,16 +618,21 @@ final class FakeStorageGateway implements LibraryStorageGateway {
   }
 
   @override
-  Future<AppResult<RootAccessState>> checkAccess(LibraryRootLocator root) =>
-      throw StateError('Unexpected test call: checkAccess');
+  Future<AppResult<RootAccessState>> checkAccess(
+    LibraryRootLocator root,
+  ) async {
+    checkedRoots.add(root);
+    return Success<RootAccessState>(accessState);
+  }
 
   @override
   Future<AppResult<AuthorizedLibraryRoot>> chooseRoot() =>
-      throw StateError('Unexpected test call: chooseRoot');
+      onChoose?.call() ??
+      (throw StateError('Unexpected test call: chooseRoot'));
 
   @override
-  Future<AppResult<List<AuthorizedLibraryRoot>>> listPersistedRoots() =>
-      throw StateError('Unexpected test call: listPersistedRoots');
+  Future<AppResult<List<AuthorizedLibraryRoot>>> listPersistedRoots() async =>
+      Success<List<AuthorizedLibraryRoot>>(persistedRoots);
 
   @override
   Future<AppResult<void>> releaseRootPermission(LibraryRootLocator root) async {
@@ -633,6 +661,7 @@ final class FakePlaybackSession implements PlaybackSession {
     this.pauseFailure,
     this.onAttach,
     this.onPlay,
+    this.allowSubtitle = false,
     PlaybackSnapshot initialSnapshot = const PlaybackSnapshot.closed(),
   }) : _snapshot = initialSnapshot;
 
@@ -643,6 +672,8 @@ final class FakePlaybackSession implements PlaybackSession {
   final AppFailure? pauseFailure;
   final Future<void> Function()? onAttach;
   final Future<void> Function()? onPlay;
+  final bool allowSubtitle;
+  final subtitleLanguages = <String?>[];
   PlaybackSnapshot _snapshot;
   int openCount = 0;
   int stopCount = 0;
@@ -670,7 +701,13 @@ final class FakePlaybackSession implements PlaybackSession {
   Future<AppResult<void>> attachSubtitle(
     Uint8List bytes, {
     String? languageTag,
-  }) => throw StateError('Unexpected test call: attachSubtitle');
+  }) async {
+    if (!allowSubtitle) {
+      throw StateError('Unexpected test call: attachSubtitle');
+    }
+    subtitleLanguages.add(languageTag);
+    return const Success<void>(null);
+  }
 
   @override
   Future<void> handleLifecycleInactive() async {

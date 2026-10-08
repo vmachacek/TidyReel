@@ -31,6 +31,7 @@ final class RiskSpikeState {
     this.probeResult,
     this.playbackSnapshot = const PlaybackSnapshot.closed(),
     this.scanCompleted = false,
+    this.lastScanCompletedAt,
     this.canCancel = false,
     this.failure,
     this.subtitleWarning,
@@ -48,6 +49,7 @@ final class RiskSpikeState {
   final MediaProbeResult? probeResult;
   final PlaybackSnapshot playbackSnapshot;
   final bool scanCompleted;
+  final DateTime? lastScanCompletedAt;
   final bool canCancel;
   final AppFailure? failure;
   final AppFailure? subtitleWarning;
@@ -75,6 +77,7 @@ final class RiskSpikeState {
     bool clearProbeResult = false,
     PlaybackSnapshot? playbackSnapshot,
     bool? scanCompleted,
+    DateTime? lastScanCompletedAt,
     bool? canCancel,
     AppFailure? failure,
     bool clearFailure = false,
@@ -93,6 +96,7 @@ final class RiskSpikeState {
     probeResult: clearProbeResult ? null : probeResult ?? this.probeResult,
     playbackSnapshot: playbackSnapshot ?? this.playbackSnapshot,
     scanCompleted: scanCompleted ?? this.scanCompleted,
+    lastScanCompletedAt: lastScanCompletedAt ?? this.lastScanCompletedAt,
     canCancel: canCancel ?? this.canCancel,
     failure: clearFailure ? null : failure ?? this.failure,
     subtitleWarning: clearSubtitleWarning

@@ -726,14 +726,12 @@ class _CatalogScreenState extends State<CatalogScreen> {
     context: context,
     isScrollControlled: true,
     builder: (sheetContext) => SafeArea(
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.fromLTRB(
-            24,
-            24,
-            24,
-            MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
-          ),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,

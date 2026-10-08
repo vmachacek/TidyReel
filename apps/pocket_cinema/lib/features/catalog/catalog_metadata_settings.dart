@@ -170,7 +170,12 @@ Future<void> reviewCatalogMatch(
     isScrollControlled: true,
     builder: (sheetContext) => SafeArea(
       child: Padding(
-        padding: const EdgeInsets.all(24),
+        padding: EdgeInsets.fromLTRB(
+          24,
+          24,
+          24,
+          MediaQuery.viewInsetsOf(sheetContext).bottom + 24,
+        ),
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxHeight: MediaQuery.sizeOf(sheetContext).height * .75,
@@ -206,6 +211,7 @@ Future<void> reviewCatalogMatch(
                   ),
                   if (library.matcher.enabled)
                     TextField(
+                      key: ValueKey('review-match-search-${local.id}'),
                       decoration: const InputDecoration(
                         labelText: 'Search another title',
                         hintText: 'Enter a title and press Search',

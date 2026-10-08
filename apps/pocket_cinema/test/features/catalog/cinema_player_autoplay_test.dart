@@ -10,6 +10,7 @@ import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/cinema_player.dart';
 import 'package:pocket_cinema/features/risk_spike/playback_session_coordinator.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_controller.dart';
+import 'package:pocket_cinema/features/risk_spike/widgets/failure_panel.dart';
 import 'package:pocket_cinema/l10n/app_localizations.dart';
 
 import '../risk_spike/playback_session_coordinator_test.dart'
@@ -219,6 +220,7 @@ void main() {
     int initialPosition = 0,
     int nextResume = 0,
     bool initiallyBlocked = false,
+    AppFailure? refreshFailure,
     TextScaler textScaler = TextScaler.noScaling,
   }) async {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
@@ -231,7 +233,9 @@ void main() {
         engineFactory: FakePlaybackEngineFactory(engines),
         storage: storage,
       ),
-      initialState: filesAvailableState,
+      initialState: filesAvailableState.copyWith(
+        refreshFailure: refreshFailure,
+      ),
     );
     if (initiallyBlocked) controller.setPlaybackBlocked(true);
     final library = CatalogLibrary(controller);
@@ -296,6 +300,45 @@ void main() {
       navigator: navigator,
     );
   }
+
+  testWidgets(
+    'a failed library refresh leaves healthy playback and autoplay available',
+    (tester) async {
+      const refreshFailure = AppFailure(
+        code: 'SCAN_FAILED',
+        messageKey: 'scanFailed',
+        retryable: true,
+      );
+      final fixture = await open(
+        tester,
+        initialPosition: 110,
+        refreshFailure: refreshFailure,
+      );
+
+      expect(fixture.controller.state.refreshFailure, same(refreshFailure));
+      expect(fixture.controller.state.libraryFailure, same(refreshFailure));
+      expect(fixture.controller.state.failure, isNull);
+      expect(fixture.engine.current.isPlaying, isTrue);
+      expect(find.byKey(_prompt), findsOneWidget);
+      expect(find.byType(FailurePanel), findsNothing);
+
+      await fixture.update(
+        position: _duration,
+        isCompleted: true,
+        isPlaying: false,
+      );
+      await tester.pumpAndSettle();
+
+      expect(fixture.storage.openedKeys, [
+        fixture.videos[0].id,
+        fixture.videos[1].id,
+      ]);
+      expect(fixture.engine.current.isPlaying, isTrue);
+      expect(fixture.controller.state.refreshFailure, same(refreshFailure));
+      expect(find.byType(FailurePanel), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'a player mounted while blocked waits for an explicit play after release',

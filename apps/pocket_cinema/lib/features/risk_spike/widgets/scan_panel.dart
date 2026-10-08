@@ -16,6 +16,7 @@ final class ScanPanel extends StatelessWidget {
     final root = state.root;
     final status = switch (state.phase) {
       RiskSpikePhase.checkingGrant => l10n.checkingAccess,
+      _ when state.canCancel => l10n.scanInProgress,
       RiskSpikePhase.enumerating => l10n.scanInProgress,
       RiskSpikePhase.cancelled => l10n.scanCancelled,
       _ when state.scanCompleted => l10n.scanComplete,
@@ -58,8 +59,7 @@ final class ScanPanel extends StatelessWidget {
               children: [
                 FilledButton.icon(
                   key: const Key('scan-button'),
-                  onPressed:
-                      root == null || state.phase == RiskSpikePhase.enumerating
+                  onPressed: !state.canRescan || root == null
                       ? null
                       : () => controller.scan(root),
                   icon: const Icon(Icons.radar),

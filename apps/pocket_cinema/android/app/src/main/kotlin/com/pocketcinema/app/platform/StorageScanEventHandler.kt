@@ -22,6 +22,8 @@ class StorageScanEventHandler(
     }
 
     fun scanSink(scanId: String): ScanSink = object : ScanSink {
+        private val progressThrottle = ScanProgressThrottle()
+
         override fun batch(entries: List<StorageEntryMessage>) {
             emit(
                 mapOf(
@@ -33,6 +35,7 @@ class StorageScanEventHandler(
         }
 
         override fun progress(visitedEntries: Int) {
+            if (!progressThrottle.shouldEmit()) return
             emit(
                 mapOf(
                     "scanId" to scanId,

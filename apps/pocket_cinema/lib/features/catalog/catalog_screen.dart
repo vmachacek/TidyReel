@@ -42,12 +42,14 @@ class _CatalogScreenState extends State<CatalogScreen> {
   String? featuredTitleId;
   String? presentedScope;
   bool hasPresentedCatalog = false;
+  bool startupRefreshScheduled = false;
   List<CatalogTitle> titlesFor(List<StorageEntrySnapshot> entries) =>
       library.titlesFor(entries);
 
   @override
   void initState() {
     super.initState();
+    library.addListener(autoScan);
     widget.controller.addListener(autoScan);
     WidgetsBinding.instance.addPostFrameCallback((_) => autoScan());
   }
@@ -58,12 +60,29 @@ class _CatalogScreenState extends State<CatalogScreen> {
         state.phase == RiskSpikePhase.ready &&
         !state.scanCompleted) {
       unawaited(widget.controller.scan(state.root!));
+      return;
+    }
+    if (!startupRefreshScheduled &&
+        widget.controller.needsStartupRefresh &&
+        !library.isDiscovering &&
+        !library.isRestoringPreferences) {
+      startupRefreshScheduled = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        startupRefreshScheduled = false;
+        // The controller rejects requests superseded by a manual scan or a
+        // folder change. The restored catalog renders before this refresh.
+        if (!library.isDiscovering && !library.isRestoringPreferences) {
+          unawaited(widget.controller.refreshOnStartup());
+        }
+      });
     }
   }
 
   @override
   void dispose() {
     widget.controller.removeListener(autoScan);
+    library.removeListener(autoScan);
     library.dispose();
     super.dispose();
   }
@@ -95,6 +114,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
     builder: (context) {
       final state = widget.controller.state;
       final scanning =
+          state.canCancel ||
           state.phase == RiskSpikePhase.enumerating ||
           state.phase == RiskSpikePhase.choosingRoot ||
           state.phase == RiskSpikePhase.checkingGrant;
@@ -184,9 +204,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                         ),
                       ),
                       const SizedBox(height: 24),
-                      if (state.failure != null) ...[
+                      if (state.libraryFailure != null) ...[
                         FailurePanel(
-                          failure: state.failure!,
+                          failure: state.libraryFailure!,
                           controller: widget.controller,
                         ),
                         const SizedBox(height: 20),
@@ -434,9 +454,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  if (state.failure != null) ...[
+                  if (state.libraryFailure != null) ...[
                     FailurePanel(
-                      failure: state.failure!,
+                      failure: state.libraryFailure!,
                       controller: widget.controller,
                     ),
                     const SizedBox(height: 20),
@@ -460,7 +480,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                                   state.phase == RiskSpikePhase.checkingGrant
                                       ? 'Restoring your library…'
                                       : scanning
-                                      ? 'Scanning · ${state.discoveredCount} files discovered'
+                                      ? '${state.scanCompleted ? 'Refreshing library' : 'Scanning'} · ${state.discoveredCount} files discovered'
                                       : 'Organizing your library…',
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,

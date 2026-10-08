@@ -14,11 +14,15 @@ canonical titles and episode names while retaining uncertain local evidence.
 - Persist read-only access across process restarts and explicitly release it.
 - Recursively enumerate provider metadata without reading video bytes.
 - Save completed file inventories on the device and restore them at startup
-  after checking folder access. Use **Rescan library** after adding, removing,
-  or changing media files; first-time and missing-cache libraries scan once.
+  after checking folder access. Once the saved library is visible, refresh it
+  automatically in the background on each launch. **Rescan library** also
+  discovers changes on demand; missing-cache libraries show loading placeholders
+  during their first scan.
 - Show stable loading placeholders until the initial inventory, saved view,
   and local title grouping are ready. Refreshing keeps the current library
   visible, and interrupted scans retain the last completed inventory.
+- Process refresh inventories and title grouping on background workers, with
+  limited progress updates to keep browsing and playback responsive.
 - Classify MP4/MKV files, ignore AppleDouble entries, and pair SRT sidecars.
 - Probe duration, container, dimensions, codecs, rotation, and stream count
   with Android media APIs.

@@ -65,6 +65,30 @@ Future<void> _waitForLocalDiscovery(WidgetTester tester) async {
   await tester.pump();
 }
 
+Future<void> _finishScan(
+  WidgetTester tester,
+  _ControlledStorage storage, {
+  bool fail = false,
+}) async {
+  await tester.runAsync(() async {
+    var finished = false;
+    final finishing = fail ? storage.fail() : storage.complete();
+    unawaited(finishing.then<void>((_) => finished = true));
+    final elapsed = Stopwatch()..start();
+    while (!finished) {
+      if (elapsed.elapsed > const Duration(seconds: 30)) {
+        throw TestFailure('Controlled scan did not finish.');
+      }
+      // Scan completion classifies entries in a real isolate. Pump fake-clock
+      // continuations while allowing its messages to arrive in real time.
+      await tester.pump();
+      await Future<void>.delayed(Duration.zero);
+    }
+    await finishing;
+  });
+  await tester.pump();
+}
+
 Future<Rect> _contentRect(WidgetTester tester, Finder finder) async {
   final scrollable = find
       .descendant(
@@ -88,12 +112,23 @@ RiskSpikeController _controller(
   _ControlledStorage storage, {
   RiskSpikeState initialState = const RiskSpikeState(),
   MediaProbe? probe,
+  ScanInventoryStore? inventoryStore,
 }) => RiskSpikeController(
   storage: storage,
   probe: probe ?? controller_fixtures.FakeMediaProbe(),
   playback: controller_fixtures.FakePlaybackSession(),
-  inventoryStore: _MemoryInventory(),
+  inventoryStore: inventoryStore ?? _MemoryInventory(),
   initialState: initialState,
+);
+
+ScanInventory _inventory({bool empty = false}) => ScanInventory(
+  root: fixtures.testRoot.locator,
+  videos: empty ? [] : [files.file('Movies/Alpha (2016).mp4')],
+  artwork: const [],
+  subtitles: const [],
+  discoveredCount: empty ? 0 : 1,
+  ignoredCount: 0,
+  completedAtUtc: DateTime.utc(2026, 10, 8),
 );
 
 void main() {
@@ -133,6 +168,177 @@ void main() {
 
     expect(_loading, findsNothing);
     expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'startup refresh waits for cached presentation and leaves it interactive',
+    (tester) async {
+      await _surface(tester, const Size(1200, 1000));
+      final preferences = Completer<String>();
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+            if (call.method == 'loadPreferences') return preferences.future;
+            return null;
+          });
+      final storage = _ControlledStorage();
+      final store = _MemoryInventory(saved: _inventory());
+      final controller = _controller(storage, inventoryStore: store);
+      addTearDown(controller.dispose);
+      var cachedContentVisibleAtScanStart = false;
+      storage.onEnumerate = () {
+        cachedContentVisibleAtScanStart =
+            find.byType(JukeboxHero).evaluate().isNotEmpty &&
+            _loading.evaluate().isEmpty;
+      };
+      final initializing = controller.initialize();
+      await tester.pumpWidget(_app(controller));
+      storage.roots.complete(const Success([fixtures.testRoot]));
+      await initializing;
+      await tester.pump();
+
+      expect(controller.state.scanCompleted, isTrue);
+      expect(storage.scanCount, 0);
+      expect(_loading, findsOneWidget);
+      preferences.complete('{}');
+      await _waitForLocalDiscovery(tester);
+      await tester.pump();
+
+      expect(storage.scanCount, 1);
+      expect(cachedContentVisibleAtScanStart, isTrue);
+      expect(controller.state.canCancel, isTrue);
+      expect(_loading, findsNothing);
+      final library = catalogLibrary(tester);
+      final cachedTitle = library.currentTitles.single;
+      final hero = tester.getRect(find.byType(JukeboxHero));
+      expect(cachedTitle.name, 'Alpha');
+      expect(library.isSaved(cachedTitle), isFalse);
+
+      await tester.tap(find.byKey(const Key('jukebox-watchlist')));
+      await tester.pump();
+      expect(library.isSaved(cachedTitle), isTrue);
+      expect(controller.state.canCancel, isTrue);
+      storage.batch([
+        ...store.saved!.videos,
+        files.file('Movies/Beta (2017).mp4'),
+      ]);
+      await _waitForLocalDiscovery(tester);
+
+      expect(library.currentTitles, hasLength(1));
+      expect(controller.state.entries, hasLength(1));
+      expect(tester.getRect(find.byType(JukeboxHero)), hero);
+      expect(_loading, findsNothing);
+
+      await _finishScan(tester, storage);
+      await settleCatalog(tester);
+
+      expect(controller.state.phase, RiskSpikePhase.filesAvailable);
+      expect(library.currentTitles, hasLength(2));
+      expect(library.isSaved(cachedTitle), isTrue);
+      expect(store.saved!.videos, hasLength(2));
+      expect(tester.getRect(find.byType(JukeboxHero)), hero);
+      expect(storage.scanCount, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final empty in [false, true]) {
+    testWidgets('startup refresh runs once per launch (empty cache: $empty)', (
+      tester,
+    ) async {
+      await _surface(tester, const Size(1200, 1000));
+      final store = _MemoryInventory(saved: _inventory(empty: empty));
+      final storage = _ControlledStorage();
+      final controller = _controller(storage, inventoryStore: store);
+      addTearDown(controller.dispose);
+      storage.roots.complete(const Success([fixtures.testRoot]));
+      await controller.initialize();
+      expect(storage.scanCount, 0);
+
+      await tester.pumpWidget(_app(controller));
+      await _waitForLocalDiscovery(tester);
+      await tester.pump();
+
+      expect(storage.scanCount, 1);
+      expect(controller.state.canCancel, isTrue);
+      expect(_loading, findsNothing);
+      if (!empty) storage.batch(store.saved!.videos);
+      await _finishScan(tester, storage);
+      await settleCatalog(tester);
+      await controller.initialize();
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpWidget(_app(controller));
+      await _waitForLocalDiscovery(tester);
+      await tester.pump();
+
+      expect(storage.scanCount, 1);
+      expect(controller.state.phase, RiskSpikePhase.filesAvailable);
+      expect(_loading, findsNothing);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      final nextStorage = _ControlledStorage();
+      final nextController = _controller(nextStorage, inventoryStore: store);
+      addTearDown(nextController.dispose);
+      nextStorage.roots.complete(const Success([fixtures.testRoot]));
+      await nextController.initialize();
+      await tester.pumpWidget(_app(nextController));
+      await _waitForLocalDiscovery(tester);
+      await tester.pump();
+
+      expect(nextStorage.scanCount, 1);
+      expect(nextController.state.canCancel, isTrue);
+      expect(_loading, findsNothing);
+      if (!empty) nextStorage.batch(store.saved!.videos);
+      await _finishScan(tester, nextStorage);
+      await settleCatalog(tester);
+      expect(nextStorage.scanCount, 1);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('failed startup refresh preserves cached catalog without retry', (
+    tester,
+  ) async {
+    await _surface(tester, const Size(1200, 1000));
+    final cached = _inventory();
+    final store = _MemoryInventory(saved: cached);
+    final storage = _ControlledStorage();
+    final controller = _controller(storage, inventoryStore: store);
+    addTearDown(controller.dispose);
+    storage.roots.complete(const Success([fixtures.testRoot]));
+    await controller.initialize();
+    final entries = controller.state.entries;
+    await tester.pumpWidget(_app(controller));
+    await _waitForLocalDiscovery(tester);
+    await tester.pump();
+    expect(storage.scanCount, 1);
+    final library = catalogLibrary(tester);
+    final title = library.currentTitles.single;
+    storage.batch([files.file('Movies/Incomplete (2025).mp4')]);
+    await _waitForLocalDiscovery(tester);
+
+    expect(library.currentTitles.single.id, title.id);
+    await _finishScan(tester, storage, fail: true);
+    await settleCatalog(tester);
+
+    expect(controller.state.phase, RiskSpikePhase.failure);
+    expect(controller.state.entries, same(entries));
+    expect(controller.state.scanCompleted, isTrue);
+    expect(library.currentTitles.single.id, title.id);
+    expect(store.saved, same(cached));
+    expect(_loading, findsNothing);
+    expect(find.byType(JukeboxHero), findsOneWidget);
+    expect(find.byKey(const Key('folder-onboarding')), findsNothing);
+    final watchlist = find.byKey(const Key('jukebox-watchlist'));
+    // The scan failure panel above the hero can place its actions below the
+    // viewport. Scroll to the action before verifying the cached UI still works.
+    await tester.ensureVisible(watchlist);
+    await tester.pump();
+    expect(tester.widget<IconButton>(watchlist).onPressed, isNotNull);
+    await tester.tap(watchlist);
+    await tester.pump();
+    expect(library.isSaved(title), isTrue);
+    expect(storage.scanCount, 1);
     expect(tester.takeException(), isNull);
   });
 
@@ -177,7 +383,7 @@ void main() {
         toolbar,
       );
 
-      await storage.complete();
+      await _finishScan(tester, storage);
       await settleCatalog(tester);
 
       expect(_loading, findsNothing);
@@ -231,7 +437,7 @@ void main() {
         hasLength(1),
       );
 
-      await storage.complete();
+      await _finishScan(tester, storage);
       await refresh;
       await settleCatalog(tester);
       expect(
@@ -310,7 +516,7 @@ void main() {
       await tester.pump();
       expect(_loading, findsOneWidget);
 
-      await storage.complete();
+      await _finishScan(tester, storage);
       await settleCatalog(tester);
 
       final restoredPosition = tester
@@ -426,14 +632,22 @@ void main() {
 }
 
 class _MemoryInventory implements ScanInventoryStore {
-  @override
-  Future<ScanInventory?> load() async => null;
+  _MemoryInventory({this.saved});
+
+  ScanInventory? saved;
 
   @override
-  Future<void> save(ScanInventory inventory) async {}
+  Future<ScanInventory?> load() async => saved;
 
   @override
-  Future<void> clear() async {}
+  Future<void> save(ScanInventory inventory) async {
+    saved = inventory;
+  }
+
+  @override
+  Future<void> clear() async {
+    saved = null;
+  }
 }
 
 class _DelayedProbe implements MediaProbe {
@@ -451,6 +665,8 @@ class _ControlledStorage implements LibraryStorageGateway {
   final roots = Completer<AppResult<List<AuthorizedLibraryRoot>>>();
   StreamController<StorageScanEvent>? _events;
   String? _scanId;
+  int scanCount = 0;
+  VoidCallback? onEnumerate;
 
   @override
   Future<AppResult<List<AuthorizedLibraryRoot>>> listPersistedRoots() =>
@@ -467,6 +683,8 @@ class _ControlledStorage implements LibraryStorageGateway {
     required String scanId,
     required CancellationToken cancellationToken,
   }) {
+    scanCount++;
+    onEnumerate?.call();
     _scanId = scanId;
     _events = StreamController<StorageScanEvent>();
     return _events!.stream;
@@ -477,6 +695,11 @@ class _ControlledStorage implements LibraryStorageGateway {
 
   Future<void> complete() async {
     _events!.add(StorageScanCompleted(_scanId!));
+    await _events!.close();
+  }
+
+  Future<void> fail() async {
+    _events!.add(StorageScanFailed(_scanId!, RiskSpikeController.scanFailed));
     await _events!.close();
   }
 

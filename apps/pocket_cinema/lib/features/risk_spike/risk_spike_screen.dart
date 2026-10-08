@@ -33,8 +33,8 @@ final class RiskSpikeScreen extends StatelessWidget {
         MediaList(state: state, controller: controller),
       ];
       final rightPanels = <Widget>[
-        if (state.failure != null)
-          FailurePanel(failure: state.failure!, controller: controller),
+        if (state.libraryFailure != null)
+          FailurePanel(failure: state.libraryFailure!, controller: controller),
         ProbePanel(state: state, controller: controller),
         PlayerPanel(
           state: state,

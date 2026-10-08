@@ -34,6 +34,7 @@ final class RiskSpikeState {
     this.lastScanCompletedAt,
     this.canCancel = false,
     this.failure,
+    this.refreshFailure,
     this.subtitleWarning,
   });
 
@@ -52,10 +53,15 @@ final class RiskSpikeState {
   final DateTime? lastScanCompletedAt;
   final bool canCancel;
   final AppFailure? failure;
+  final AppFailure? refreshFailure;
   final AppFailure? subtitleWarning;
+
+  AppFailure? get libraryFailure => failure ?? refreshFailure;
 
   bool get canRescan =>
       root != null &&
+      !canCancel &&
+      phase != RiskSpikePhase.checkingGrant &&
       phase != RiskSpikePhase.enumerating &&
       phase != RiskSpikePhase.choosingRoot;
 
@@ -81,6 +87,8 @@ final class RiskSpikeState {
     bool? canCancel,
     AppFailure? failure,
     bool clearFailure = false,
+    AppFailure? refreshFailure,
+    bool clearRefreshFailure = false,
     AppFailure? subtitleWarning,
     bool clearSubtitleWarning = false,
   }) => RiskSpikeState(
@@ -99,6 +107,9 @@ final class RiskSpikeState {
     lastScanCompletedAt: lastScanCompletedAt ?? this.lastScanCompletedAt,
     canCancel: canCancel ?? this.canCancel,
     failure: clearFailure ? null : failure ?? this.failure,
+    refreshFailure: clearRefreshFailure
+        ? null
+        : refreshFailure ?? this.refreshFailure,
     subtitleWarning: clearSubtitleWarning
         ? null
         : subtitleWarning ?? this.subtitleWarning,

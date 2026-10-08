@@ -499,7 +499,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                                   ),
                                   if (player != null)
                                     SizedBox(
-                                      width: 140,
+                                      width: 220,
                                       child: Row(
                                         children: [
                                           IconButton(
@@ -515,7 +515,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                                                   : Icons.volume_off,
                                             ),
                                           ),
-                                          Expanded(
+                                          SizedBox(
+                                            width: 162,
                                             child: Slider(
                                               value: player!.state.volume.clamp(
                                                 0,
@@ -538,7 +539,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                                             Icons.brightness_6_outlined,
                                             size: 22,
                                           ),
-                                          Expanded(
+                                          SizedBox(
+                                            width: 162,
                                             child: Slider(
                                               key: const Key(
                                                 'player-brightness-slider',

@@ -80,7 +80,9 @@ void main() {
       initialState: filesAvailableState,
     );
     final library = CatalogLibrary(controller);
-    addTearDown(() {
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
       library.dispose();
       controller.dispose();
     });
@@ -119,8 +121,6 @@ void main() {
   testWidgets(
     'Brightness starts at the native level and adjusts from the dock',
     (tester) async {
-      final semantics = tester.ensureSemantics();
-      addTearDown(semantics.dispose);
       final controller = await open(tester);
       final sliderFinder = find.byKey(brightnessKey);
       final slider = tester.widget<Slider>(sliderFinder);
@@ -132,10 +132,7 @@ void main() {
       expect(slider.onChanged, isNotNull);
       expect(find.byTooltip('Brightness'), findsWidgets);
       expect(find.text('65%'), findsOneWidget);
-      expect(
-        tester.getSemantics(sliderFinder).getSemanticsData().value,
-        'Brightness 65 percent',
-      );
+      expect(find.semantics.byValue('Brightness 65 percent'), findsOneWidget);
 
       await tester.drag(sliderFinder, const Offset(40, 0));
       await tester.pump();
@@ -207,15 +204,13 @@ void main() {
   ) async {
     await open(tester);
     await tester.tap(find.byTooltip('Back to library'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
     expect(find.byType(CinemaPlayer), findsNothing);
     expect(callsTo('endWatching'), hasLength(1));
 
     initialBrightness = 0.37;
     await tester.tap(find.text('Open player'));
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
     expect(callsTo('beginWatching'), hasLength(2));
     expect(callsTo('endWatching'), hasLength(1));
     expect(tester.widget<Slider>(find.byKey(brightnessKey)).value, 0.37);

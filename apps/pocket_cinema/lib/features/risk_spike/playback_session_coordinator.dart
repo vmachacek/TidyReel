@@ -41,12 +41,17 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
 
   PlaybackEngine? _engine;
   MediaSourceLease? _lease;
+  Future<void>? _lifecyclePause;
+  AppFailure? _lifecycleFailure;
 
   PlaybackEngine? get activeEngine => _engine;
 
   @override
-  PlaybackSnapshot get snapshot =>
-      _engine?.current ?? const PlaybackSnapshot.closed();
+  PlaybackSnapshot get snapshot {
+    final current = _engine?.current ?? const PlaybackSnapshot.closed();
+    final failure = _lifecycleFailure;
+    return failure == null ? current : current.copyWith(failure: failure);
+  }
 
   @override
   Future<AppResult<void>> attachLease(
@@ -140,7 +145,33 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
       _runControl((engine) => engine.seek(position));
 
   @override
-  Future<void> handleLifecycleInactive() => stop();
+  Future<void> handleLifecycleInactive() {
+    final engine = _engine;
+    if (engine == null || !engine.current.isOpen) {
+      return Future<void>.value();
+    }
+    final pending = _lifecyclePause;
+    if (pending != null) return pending;
+    if (!engine.current.isPlaying) return Future<void>.value();
+
+    // Android can report both inactive and paused for a single interruption.
+    // Keep the source available so the mounted player can still play and seek.
+    late final Future<void> operation;
+    operation = _pauseForLifecycle(engine).whenComplete(() {
+      if (identical(_lifecyclePause, operation)) _lifecyclePause = null;
+    });
+    _lifecyclePause = operation;
+    return operation;
+  }
+
+  Future<void> _pauseForLifecycle(PlaybackEngine engine) async {
+    final result = await engine.pause();
+    if (!identical(_engine, engine)) return;
+    _lifecycleFailure = switch (result) {
+      FailureResult<void>(:final failure) => failure,
+      Success<void>() => null,
+    };
+  }
 
   @override
   Future<void> stop() async {
@@ -152,6 +183,8 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
 
     _engine = null;
     _lease = null;
+    _lifecyclePause = null;
+    _lifecycleFailure = null;
     try {
       if (engine != null) {
         try {
@@ -169,19 +202,21 @@ final class PlaybackSessionCoordinator implements PlaybackSession {
 
   Future<AppResult<void>> _runControl(
     Future<AppResult<void>> Function(PlaybackEngine engine) action,
-  ) {
+  ) async {
     final engine = _engine;
     if (engine == null) {
-      return Future<AppResult<void>>.value(
-        const FailureResult<void>(
-          AppFailure(
-            code: 'PLAYBACK_NOT_OPEN',
-            messageKey: 'playbackNotOpen',
-            retryable: true,
-          ),
+      return const FailureResult<void>(
+        AppFailure(
+          code: 'PLAYBACK_NOT_OPEN',
+          messageKey: 'playbackNotOpen',
+          retryable: true,
         ),
       );
     }
-    return action(engine);
+    final result = await action(engine);
+    if (identical(_engine, engine) && result is Success<void>) {
+      _lifecycleFailure = null;
+    }
+    return result;
   }
 }

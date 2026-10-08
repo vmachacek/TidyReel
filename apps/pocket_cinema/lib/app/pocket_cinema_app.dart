@@ -37,9 +37,10 @@ final class _PocketCinemaAppState extends State<PocketCinemaApp>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.detached) {
+        state == AppLifecycleState.paused) {
       unawaited(widget.controller.handleLifecycleInactive());
+    } else if (state == AppLifecycleState.detached) {
+      unawaited(widget.controller.closePlayer());
     }
   }
 

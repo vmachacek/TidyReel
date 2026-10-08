@@ -348,14 +348,7 @@ final class RiskSpikeController extends ChangeNotifier {
 
   Future<void> handleLifecycleInactive() async {
     await playback.handleLifecycleInactive();
-    _emit(
-      _state.copyWith(
-        phase: _state.selectedFile == null
-            ? RiskSpikePhase.filesAvailable
-            : RiskSpikePhase.fileReady,
-        playbackSnapshot: const PlaybackSnapshot.closed(),
-      ),
-    );
+    refreshPlaybackSnapshot();
   }
 
   void _applyScanEvent(StorageScanEvent event) {

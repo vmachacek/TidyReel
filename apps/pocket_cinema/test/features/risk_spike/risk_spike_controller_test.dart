@@ -155,6 +155,115 @@ void main() {
     expect(controller.state.canRepairRoot, isTrue);
     expect(playback.stopCount, 1);
   });
+
+  test(
+    'lifecycle interruption retains playback progress and player state',
+    () async {
+      const playing = PlaybackSnapshot(
+        isOpen: true,
+        isPlaying: true,
+        position: Duration(minutes: 3),
+        duration: Duration(minutes: 30),
+      );
+      final playback = FakePlaybackSession(
+        allowLifecycleInactive: true,
+        initialSnapshot: playing,
+      );
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(),
+        probe: FakeMediaProbe(),
+        playback: playback,
+        initialState: RiskSpikeState(
+          phase: RiskSpikePhase.playing,
+          root: root,
+          entries: [videoEntry],
+          selectedFile: videoEntry,
+          playbackSnapshot: playing,
+          scanCompleted: true,
+          videoCount: 1,
+          subtitleWarning: subtitleTooLargeFailure,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.handleLifecycleInactive();
+      await controller.handleLifecycleInactive();
+
+      expect(controller.state.phase, RiskSpikePhase.playing);
+      expect(controller.state.playbackSnapshot.isOpen, isTrue);
+      expect(controller.state.playbackSnapshot.isPlaying, isFalse);
+      expect(controller.state.playbackSnapshot.position, playing.position);
+      expect(controller.state.playbackSnapshot.duration, playing.duration);
+      expect(controller.state.selectedFile, same(videoEntry));
+      expect(controller.state.entries, [videoEntry]);
+      expect(controller.state.root, same(root));
+      expect(controller.state.scanCompleted, isTrue);
+      expect(controller.state.videoCount, 1);
+      expect(controller.state.subtitleWarning, same(subtitleTooLargeFailure));
+      expect(playback.stopCount, 0);
+    },
+  );
+
+  test(
+    'lifecycle interruption while idle leaves existing state intact',
+    () async {
+      final initial = RiskSpikeState(
+        phase: RiskSpikePhase.enumerating,
+        root: root,
+        entries: [videoEntry],
+        discoveredCount: 1,
+        canCancel: true,
+        failure: scanFailure,
+      );
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(),
+        probe: FakeMediaProbe(),
+        playback: FakePlaybackSession(allowLifecycleInactive: true),
+        initialState: initial,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.handleLifecycleInactive();
+
+      expect(controller.state, same(initial));
+    },
+  );
+
+  test(
+    'lifecycle pause failure is visible while keeping the player open',
+    () async {
+      const failure = AppFailure(
+        code: 'PLAYBACK_CONTROL_FAILED',
+        messageKey: 'playbackControlFailed',
+        retryable: true,
+      );
+      const playing = PlaybackSnapshot(isOpen: true, isPlaying: true);
+      final playback = FakePlaybackSession(
+        allowLifecycleInactive: true,
+        initialSnapshot: playing,
+        lifecycleFailure: failure,
+      );
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(),
+        probe: FakeMediaProbe(),
+        playback: playback,
+        initialState: RiskSpikeState(
+          phase: RiskSpikePhase.playing,
+          root: root,
+          selectedFile: videoEntry,
+          playbackSnapshot: playing,
+        ),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.handleLifecycleInactive();
+
+      expect(controller.state.phase, RiskSpikePhase.playing);
+      expect(controller.state.playbackSnapshot.isOpen, isTrue);
+      expect(controller.state.failure, same(failure));
+      expect(controller.state.playbackSnapshot.failure, same(failure));
+    },
+  );
 }
 
 final class FakeStorageGateway implements LibraryStorageGateway {
@@ -254,10 +363,17 @@ final class FakeMediaProbe implements MediaProbe {
 }
 
 final class FakePlaybackSession implements PlaybackSession {
-  FakePlaybackSession({this.allowStop = false});
+  FakePlaybackSession({
+    this.allowStop = false,
+    this.allowLifecycleInactive = false,
+    this.lifecycleFailure,
+    PlaybackSnapshot initialSnapshot = const PlaybackSnapshot.closed(),
+  }) : _snapshot = initialSnapshot;
 
   final bool allowStop;
-  PlaybackSnapshot _snapshot = const PlaybackSnapshot.closed();
+  final bool allowLifecycleInactive;
+  final AppFailure? lifecycleFailure;
+  PlaybackSnapshot _snapshot;
   int openCount = 0;
   int stopCount = 0;
 
@@ -281,8 +397,16 @@ final class FakePlaybackSession implements PlaybackSession {
   }) => throw StateError('Unexpected test call: attachSubtitle');
 
   @override
-  Future<void> handleLifecycleInactive() =>
+  Future<void> handleLifecycleInactive() async {
+    if (!allowLifecycleInactive) {
       throw StateError('Unexpected test call: handleLifecycleInactive');
+    }
+    if (!_snapshot.isOpen) return;
+    _snapshot = _snapshot.copyWith(
+      isPlaying: lifecycleFailure == null ? false : _snapshot.isPlaying,
+      failure: lifecycleFailure,
+    );
+  }
 
   @override
   Future<AppResult<void>> pause() =>

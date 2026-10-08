@@ -135,15 +135,147 @@ void main() {
 
     expect(engine.controlCalls, ['pause', 'play', 'seek:12000']);
   });
+
+  test(
+    'lifecycle interruption pauses without closing the player or lease',
+    () async {
+      final engine = FakePlaybackEngine(
+        openedSnapshot: const PlaybackSnapshot(
+          isOpen: true,
+          isPlaying: true,
+          position: Duration(minutes: 3),
+          duration: Duration(minutes: 30),
+        ),
+      );
+      final storage = FakeStorageGateway();
+      final coordinator = PlaybackSessionCoordinator(
+        engineFactory: FakePlaybackEngineFactory([engine]),
+        storage: storage,
+      );
+      await coordinator.attachLease(directLease);
+
+      await coordinator.handleLifecycleInactive();
+      await coordinator.handleLifecycleInactive();
+
+      expect(coordinator.activeEngine, same(engine));
+      expect(coordinator.snapshot.isOpen, isTrue);
+      expect(coordinator.snapshot.isPlaying, isFalse);
+      expect(coordinator.snapshot.position, const Duration(minutes: 3));
+      expect(coordinator.snapshot.duration, const Duration(minutes: 30));
+      expect(engine.controlCalls, ['pause']);
+      expect(engine.stopCalls, 0);
+      expect(engine.disposeCalls, 0);
+      expect(storage.releaseCounts, isEmpty);
+
+      await coordinator.play();
+      await coordinator.seek(const Duration(minutes: 4));
+      expect(coordinator.snapshot.isPlaying, isTrue);
+      expect(coordinator.snapshot.position, const Duration(minutes: 4));
+      expect(engine.controlCalls, ['pause', 'play', 'seek:240000']);
+
+      await coordinator.stop();
+      await coordinator.stop();
+      expect(coordinator.snapshot.isOpen, isFalse);
+      expect(engine.stopCalls, 1);
+      expect(engine.disposeCalls, 1);
+      expect(storage.releaseCounts[directLease.leaseId], 1);
+    },
+  );
+
+  test('overlapping lifecycle notifications share the same pause', () async {
+    final paused = Completer<void>();
+    final engine = FakePlaybackEngine(
+      openedSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+      onPause: () => paused.future,
+    );
+    final coordinator = PlaybackSessionCoordinator(
+      engineFactory: FakePlaybackEngineFactory([engine]),
+      storage: FakeStorageGateway(),
+    );
+    await coordinator.attachLease(directLease);
+
+    final inactive = coordinator.handleLifecycleInactive();
+    final background = coordinator.handleLifecycleInactive();
+    expect(background, same(inactive));
+    expect(engine.controlCalls, ['pause']);
+    paused.complete();
+    await Future.wait([inactive, background]);
+
+    expect(coordinator.snapshot.isOpen, isTrue);
+    expect(coordinator.snapshot.isPlaying, isFalse);
+    await coordinator.stop();
+  });
+
+  test('lifecycle interruption without an open source is a no-op', () async {
+    final engine = FakePlaybackEngine(
+      openedSnapshot: const PlaybackSnapshot.closed(),
+    );
+    final storage = FakeStorageGateway();
+    final coordinator = PlaybackSessionCoordinator(
+      engineFactory: FakePlaybackEngineFactory([engine]),
+      storage: storage,
+    );
+
+    await coordinator.handleLifecycleInactive();
+    expect(coordinator.activeEngine, isNull);
+    await coordinator.attachLease(directLease);
+    await coordinator.handleLifecycleInactive();
+    expect(coordinator.activeEngine, same(engine));
+    expect(engine.controlCalls, isEmpty);
+    expect(engine.stopCalls, 0);
+    expect(storage.releaseCounts, isEmpty);
+    await coordinator.stop();
+  });
+
+  test(
+    'failed lifecycle pause is reported without discarding the source',
+    () async {
+      const failure = AppFailure(
+        code: 'PLAYBACK_CONTROL_FAILED',
+        messageKey: 'playbackControlFailed',
+        retryable: true,
+      );
+      final engine = FakePlaybackEngine(
+        openedSnapshot: const PlaybackSnapshot(isOpen: true, isPlaying: true),
+        pauseFailure: failure,
+      );
+      final storage = FakeStorageGateway();
+      final coordinator = PlaybackSessionCoordinator(
+        engineFactory: FakePlaybackEngineFactory([engine]),
+        storage: storage,
+      );
+      await coordinator.attachLease(directLease);
+
+      await coordinator.handleLifecycleInactive();
+
+      expect(coordinator.snapshot.failure, same(failure));
+      expect(coordinator.snapshot.isOpen, isTrue);
+      expect(coordinator.activeEngine, same(engine));
+      expect(storage.releaseCounts, isEmpty);
+      await coordinator.play();
+      expect(coordinator.snapshot.failure, isNull);
+      await coordinator.stop();
+    },
+  );
 }
 
 final class FakePlaybackEngine implements PlaybackEngine {
-  FakePlaybackEngine({this.onDispose, this.subtitleFailure});
+  FakePlaybackEngine({
+    this.onDispose,
+    this.subtitleFailure,
+    this.openedSnapshot = const PlaybackSnapshot(isOpen: true),
+    this.onPause,
+    this.pauseFailure,
+  });
 
   final FutureOr<void> Function()? onDispose;
   final AppFailure? subtitleFailure;
+  final PlaybackSnapshot openedSnapshot;
+  final Future<void> Function()? onPause;
+  final AppFailure? pauseFailure;
   PlaybackSnapshot _current = const PlaybackSnapshot.closed();
   int stopCalls = 0;
+  int disposeCalls = 0;
   int subtitleCalls = 0;
   PlaybackRequest? request;
   final List<String> controlCalls = <String>[];
@@ -160,7 +292,7 @@ final class FakePlaybackEngine implements PlaybackEngine {
   @override
   Future<AppResult<void>> open(PlaybackRequest request) async {
     this.request = request;
-    _current = const PlaybackSnapshot(isOpen: true);
+    _current = openedSnapshot;
     return const Success<void>(null);
   }
 
@@ -184,11 +316,17 @@ final class FakePlaybackEngine implements PlaybackEngine {
   }
 
   @override
-  Future<void> dispose() async => onDispose?.call();
+  Future<void> dispose() async {
+    disposeCalls++;
+    await onDispose?.call();
+  }
 
   @override
   Future<AppResult<void>> pause() async {
     controlCalls.add('pause');
+    await onPause?.call();
+    final failure = pauseFailure;
+    if (failure != null) return FailureResult<void>(failure);
     _current = _current.copyWith(isPlaying: false);
     return const Success<void>(null);
   }

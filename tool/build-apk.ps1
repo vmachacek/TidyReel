@@ -74,6 +74,9 @@ $logDirectory = Join-Path $app 'build\apk-script'
 $PSNativeCommandUseErrorActionPreference = $false
 
 Write-Host "Building Pocket Cinema ($mode)..."
+$signingEnvironment = 'ORG_GRADLE_PROJECT_POCKET_CINEMA_PERSONAL_INSTALL'
+$originalSigningEnvironment = [Environment]::GetEnvironmentVariable($signingEnvironment, 'Process')
+[Environment]::SetEnvironmentVariable($signingEnvironment, ($BuildMode -eq 'Release').ToString().ToLowerInvariant(), 'Process')
 Push-Location $app
 try {
   for ($attempt = 1; $attempt -le 2; $attempt++) {
@@ -113,6 +116,7 @@ try {
   }
 } finally {
   Pop-Location
+  [Environment]::SetEnvironmentVariable($signingEnvironment, $originalSigningEnvironment, 'Process')
 }
 
 if (-not (Test-Path -LiteralPath $apk -PathType Leaf)) {

@@ -95,8 +95,26 @@ the file from there. To choose another local destination or build a debug APK:
 ```
 
 Run the script from the repository root, or use its full path from any folder.
-Use `-FlutterPath` to override the pinned Flutter executable. Release APKs
-currently use the app's debug signing key for personal installation.
+Use `-FlutterPath` to override the pinned Flutter executable. This personal APK
+script explicitly uses the development signing key so it can update existing
+tablet installs without clearing their data.
+
+## Google Play release
+
+Use `tool/build-play-bundle.ps1` to build a signed Android App Bundle for Play.
+It requires an upload keystore and `apps/pocket_cinema/android/key.properties`;
+see [publishing preparation](docs/google-play-publishing.md) for key setup,
+store listing drafts, disclosures, and the remaining submission steps.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tool\build-play-bundle.ps1
+```
+
+The bundle script verifies the signature, rejects debug certificates, and saves
+the AAB, public upload certificate, and checksum under the ignored app build
+directory. Release builds use upload signing by default; only the personal APK
+script opts into development signing. Keep the upload keystore and passwords
+out of Git and back them up securely before using them in Play Console.
 
 Build logs are saved in `apps/pocket_cinema/build/apk-script/`. If a release
 build hits a stale `integration_test` entry in the generated Android plugin

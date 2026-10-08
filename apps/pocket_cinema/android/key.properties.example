@@ -1,0 +1,6 @@
+# Copy to key.properties (ignored by Git) and enter your upload-key credentials.
+# Use an absolute path with forward slashes on Windows.
+storeFile=C:/Users/YOUR_USER/.android/pocket-cinema-upload.jks
+storePassword=REPLACE_WITH_STORE_PASSWORD
+keyAlias=upload
+keyPassword=REPLACE_WITH_KEY_PASSWORD

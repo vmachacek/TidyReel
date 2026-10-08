@@ -21,4 +21,4 @@ Status date: 2026-10-08
 | Player/progress | Implemented increment | Playback adapter, lifecycle and preference tests | Local playback behavior passed | Native preferences retain watchlist/resume; production database/progress semantics pending |
 | Diagnostic UI | Complete | Controller, widget, and fake integration tests | Grant, scan, probe, playback, subtitle, and controlled failure states exercised | Milestone 0 only |
 | Diagnostics/export | Not started | — | — | — |
-| Release pipeline | Not started | — | — | Debug build only |
+| Release pipeline | Implemented; publication pending | 359 app tests, Android unit tests, signing guard checks, and Play script success/failure checks pass | Real 70.2 MB signed AAB built and signature verified with a temporary test key; no Play upload | Upload signing and verified AAB/PEM/SHA-256 export; personal APK keeps development signing; [remaining publication gates](google-play-publishing.md) |

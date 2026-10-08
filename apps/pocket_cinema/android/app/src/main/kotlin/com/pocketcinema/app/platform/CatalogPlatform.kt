@@ -75,6 +75,29 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
                     onSuccess = { result.success(null) },
                     onFailure = { result.error("METADATA_HELP_UNAVAILABLE", "Could not open TMDB API setup.", null) },
                 )
+                "videoFrame" -> {
+                    val treeValue = call.argument<String>("treeUri")
+                    val key = call.argument<String>("storageKey")
+                    val positionValue = call.argument<Any>("positionMs")
+                    val positionMs = when (positionValue) {
+                        is Int -> positionValue.toLong()
+                        is Long -> positionValue
+                        else -> null
+                    }
+                    if (treeValue == null || key == null || positionMs == null || positionMs < 0L) {
+                        result.error("INVALID_ARGUMENT", "Missing video identifier or invalid frame position.", null)
+                    } else executor.execute {
+                        val outcome = runCatching {
+                            videoFrame(context, treeValue, key, positionMs)
+                        }
+                        main.post {
+                            if (!closed) outcome.fold(
+                                onSuccess = { result.success(it) },
+                                onFailure = { result.error("VIDEO_FRAME_ERROR", "Could not capture a frame from this video.", null) },
+                            )
+                        }
+                    }
+                }
                 "thumbnail" -> {
                     val treeValue = call.argument<String>("treeUri")
                     val key = call.argument<String>("storageKey")
@@ -112,6 +135,39 @@ class CatalogPlatform(context: Context, messenger: BinaryMessenger) {
                 else -> result.notImplemented()
             }
         }
+    }
+
+    private fun videoFrame(context: Context, treeValue: String, key: String, requestedPositionMs: Long): Map<String, Any> {
+        val tree = Uri.parse(treeValue)
+        require(tree.scheme == "content" && DocumentsContract.isTreeUri(tree))
+        val separator = key.indexOf('|')
+        require(separator > 0 && separator < key.length - 1)
+        require(key.substring(0, separator) == tree.authority)
+        val documentId = key.substring(separator + 1)
+        val rootId = DocumentsContract.getTreeDocumentId(tree)
+        require(documentId == rootId || DocumentsContract.isChildDocument(resolver,
+            DocumentsContract.buildDocumentUriUsingTree(tree, rootId),
+            DocumentsContract.buildDocumentUriUsingTree(tree, documentId)))
+        val document = DocumentsContract.buildDocumentUriUsingTree(tree, documentId)
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(context, document)
+            val durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                ?: error("Video duration is unavailable.")
+            val positionMs = ArtworkFramePosition.clamp(requestedPositionMs, durationMs)
+            // The retriever applies the video's rotation and preserves its aspect ratio.
+            // Decode the closest frame, including non-key frames, so slider selection stays accurate.
+            val frame = retriever.getScaledFrameAtTime(
+                ArtworkFramePosition.microseconds(positionMs), MediaMetadataRetriever.OPTION_CLOSEST, 1280, 720,
+            ) ?: error("No frame at the selected position.")
+            val bytes = try {
+                ByteArrayOutputStream().use { output ->
+                    check(frame.compress(Bitmap.CompressFormat.JPEG, 90, output))
+                    output.toByteArray()
+                }
+            } finally { frame.recycle() }
+            return mapOf("bytes" to bytes, "durationMs" to durationMs, "positionMs" to positionMs)
+        } finally { retriever.release() }
     }
 
     private fun preferencesResult(result: MethodChannel.Result, operation: () -> Any?) {

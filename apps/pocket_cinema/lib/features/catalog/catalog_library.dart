@@ -164,6 +164,24 @@ List<CatalogTitle> groupCatalog(
 
 enum CatalogHomeView { carousel, cards }
 
+class CatalogArtworkFrame {
+  CatalogArtworkFrame._({
+    required this.bytes,
+    required this.duration,
+    required this.position,
+    required this._owner,
+    required this._scope,
+    required this._catalogRevision,
+    required this._requestKey,
+  });
+
+  final Uint8List bytes;
+  final Duration duration, position;
+  final CatalogLibrary _owner;
+  final String _scope, _requestKey;
+  final int _catalogRevision;
+}
+
 class CatalogLibrary extends ChangeNotifier {
   CatalogLibrary(
     this.controller, {
@@ -590,6 +608,151 @@ class CatalogLibrary extends ChangeNotifier {
     title.providerId,
   ]);
 
+  /// Only the first episode is offered, including files containing a range.
+  CatalogVideo? artworkVideo(CatalogTitle title) {
+    final current = _artworkTitle(title);
+    if (!current.isSeries) return null;
+    return current.videos.where((video) {
+      if (video.season != 1) return false;
+      if (video.parsed.episodes.isNotEmpty) {
+        return video.parsed.episodes.any((episode) => episode.number == 1);
+      }
+      final first = video.episode;
+      return first != null && first <= 1 && (video.endEpisode ?? first) >= 1;
+    }).firstOrNull;
+  }
+
+  String _videoArtworkRequestKey(CatalogTitle title, String scope) =>
+      jsonEncode([
+        _artworkAliasKeys(title, scope, CatalogArtworkKind.poster),
+        title.id,
+        title.name,
+        title.providerId,
+        for (final video in title.videos)
+          [
+            video.id,
+            video.file.modifiedAtUtc?.toIso8601String(),
+            video.file.sizeBytes,
+          ],
+      ]);
+
+  void _checkVideoArtworkRequest(
+    CatalogTitle title,
+    String scope,
+    int catalogRevision,
+    String requestKey,
+  ) {
+    if (_disposed ||
+        _catalogRevision != catalogRevision ||
+        controller.state.root?.locator.opaqueValue != scope ||
+        title.localIds.any(
+          (id) =>
+              matcher.matches[jsonEncode([scope, id])]?.candidate.providerId !=
+              title.providerId,
+        ) ||
+        _videoArtworkRequestKey(_artworkTitle(title), scope) != requestKey) {
+      throw const CatalogMetadataException(
+        'The show or library changed. Preview S01E01 again.',
+      );
+    }
+  }
+
+  /// Extracts a local frame without requiring an online title match or TMDB.
+  Future<CatalogArtworkFrame> videoArtworkFrame(
+    CatalogTitle title,
+    Duration position,
+  ) async {
+    await _preferencesRestored.future;
+    final current = _artworkTitle(title);
+    final video = artworkVideo(current);
+    if (video == null) {
+      throw const CatalogMetadataException(
+        'Add S01E01 to this show to take a screenshot.',
+      );
+    }
+    final scope = controller.state.root?.locator.opaqueValue;
+    if (scope == null) {
+      throw const CatalogMetadataException('Choose a media folder first.');
+    }
+    final revision = _catalogRevision;
+    final requestKey = _videoArtworkRequestKey(current, scope);
+    _checkVideoArtworkRequest(current, scope, revision, requestKey);
+    try {
+      final result = await channel.invokeMapMethod<String, Object?>(
+        'videoFrame',
+        {
+          'treeUri': scope,
+          'storageKey': video.id,
+          'positionMs': position.inMilliseconds < 0
+              ? 0
+              : position.inMilliseconds,
+        },
+      );
+      _checkVideoArtworkRequest(current, scope, revision, requestKey);
+      final bytes = result?['bytes'];
+      final durationMs = result?['durationMs'];
+      final positionMs = result?['positionMs'];
+      if (bytes is! Uint8List ||
+          bytes.isEmpty ||
+          bytes.length > 8 * 1024 * 1024 ||
+          durationMs is! int ||
+          durationMs <= 0 ||
+          positionMs is! int ||
+          positionMs < 0 ||
+          positionMs > durationMs) {
+        throw const CatalogMetadataException(
+          'Could not take a screenshot from S01E01. Please retry.',
+        );
+      }
+      return CatalogArtworkFrame._(
+        bytes: Uint8List.fromList(bytes),
+        duration: Duration(milliseconds: durationMs),
+        position: Duration(milliseconds: positionMs),
+        owner: this,
+        scope: scope,
+        catalogRevision: revision,
+        requestKey: requestKey,
+      );
+    } on CatalogMetadataException {
+      rethrow;
+    } on Object {
+      throw const CatalogMetadataException(
+        'Could not take a screenshot from S01E01. Please retry.',
+      );
+    }
+  }
+
+  Future<void> selectVideoArtwork(
+    CatalogTitle title,
+    CatalogArtworkKind kind,
+    CatalogArtworkFrame frame,
+  ) async {
+    await _preferencesRestored.future;
+    final current = _artworkTitle(title);
+    void checkRequest() {
+      if (!identical(frame._owner, this)) {
+        throw const CatalogMetadataException(
+          'The show or library changed. Preview S01E01 again.',
+        );
+      }
+      _checkVideoArtworkRequest(
+        current,
+        frame._scope,
+        frame._catalogRevision,
+        frame._requestKey,
+      );
+    }
+
+    checkRequest();
+    await _saveArtworkBytes(
+      current,
+      frame._scope,
+      kind,
+      () async => frame.bytes,
+      checkRequest,
+    );
+  }
+
   void _checkArtworkRequest(
     CatalogTitle title,
     String scope,
@@ -664,15 +827,31 @@ class CatalogLibrary extends ChangeNotifier {
     }
     final source = available.source;
     _checkArtworkRequest(current, scope, requestKey, source);
-    final key = _artworkKey(current, scope, candidate.kind);
+    await _saveArtworkBytes(
+      current,
+      scope,
+      candidate.kind,
+      () => source.downloadArtwork(candidate),
+      () => _checkArtworkRequest(current, scope, requestKey, source),
+    );
+  }
+
+  Future<void> _saveArtworkBytes(
+    CatalogTitle current,
+    String scope,
+    CatalogArtworkKind kind,
+    Future<Uint8List> Function() obtainBytes,
+    void Function() checkRequest,
+  ) async {
+    final key = _artworkKey(current, scope, kind);
     if (!_savingArtwork.add(key)) {
       throw const CatalogMetadataException('Artwork is already being saved.');
     }
     String? pendingBlobKey;
     final previousChoices = <String, String?>{};
     try {
-      final bytes = await source.downloadArtwork(candidate);
-      _checkArtworkRequest(current, scope, requestKey, source);
+      final bytes = await obtainBytes();
+      checkRequest();
       if (bytes.isEmpty || bytes.length > 8 * 1024 * 1024) {
         throw const CatalogMetadataException(
           'The selected artwork could not be downloaded.',
@@ -693,11 +872,11 @@ class CatalogLibrary extends ChangeNotifier {
         );
       }
       pendingBlobKey = blobKey;
-      _checkArtworkRequest(current, scope, requestKey, source);
+      checkRequest();
       for (final alias in _artworkAliasKeys(
         _artworkTitle(current),
         scope,
-        candidate.kind,
+        kind,
       )) {
         previousChoices[alias] = _artworkChoices[alias];
         _artworkChoices[alias] = blobKey;
@@ -706,6 +885,7 @@ class CatalogLibrary extends ChangeNotifier {
       await channel.invokeMethod<void>('savePreferences', {
         'value': _preferencesJson(),
       });
+      checkRequest();
       pendingBlobKey = null;
       _chosenArtwork[blobKey] = Future.value(bytes);
       _thumbnails.clear();

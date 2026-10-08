@@ -23,7 +23,9 @@ canonical titles and episode names while retaining uncertain local evidence.
 - Connect TMDB in Library Settings with a securely stored Read Access Token.
 - Cache metadata offline, review title candidates, and preserve manual choices.
 - Refresh TV posters and backdrops from TMDB, compare with current artwork, and
-  save a chosen image on the device for offline use.
+  save a chosen image on the device for offline use in a dedicated artwork screen.
+- Capture artwork from local S01E01 video: move the timeline slider, preview the
+  frame, and save it as a poster or backdrop without needing TMDB.
 
 The recognition policies from NormieRename have been ported into a pure Dart
 parser; the Android app does not require its .NET or Claude runtime. See

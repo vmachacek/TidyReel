@@ -137,6 +137,18 @@ void main() {
     await tester.tap(find.byKey(const Key('refresh-tv-artwork')));
     await settleCatalog(tester);
     expect(find.text('Current artwork'), findsOneWidget);
+    expect(find.byKey(const Key('artwork-screen')), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Enable TMDB in Library Settings to refresh artwork.'),
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('artwork-screen')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
+    await settleCatalog(tester);
     expect(
       find.text('Enable TMDB in Library Settings to refresh artwork.'),
       findsOneWidget,

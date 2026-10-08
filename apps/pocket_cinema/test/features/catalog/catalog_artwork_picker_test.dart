@@ -26,6 +26,9 @@ const backdrop = CatalogArtworkCandidate(
   height: 1080,
 );
 
+const _previewPng =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==';
+
 class _MetadataSource implements CatalogMetadataSource {
   @override
   Future<List<CatalogMetadataCandidate>> search({
@@ -52,13 +55,18 @@ class _PickerLibrary extends CatalogLibrary {
   int saveAttempts = 0;
   bool fetchFails = false;
   bool saveFails = false;
+  bool frameFails = false;
   Completer<void>? saveCompletion;
   CatalogArtworkCandidate? applied;
+  CatalogArtworkFrame? appliedFrame;
+  CatalogArtworkKind? appliedFrameKind;
   List<CatalogArtworkCandidate> candidates = const [poster, backdrop];
   final thumbnailRequests = <bool>[];
-  final current = base64Decode(
-    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
-  );
+  final frameRequests = <Duration>[];
+  final pendingFrames = <Duration, Completer<void>>{};
+  int activeCaptures = 0;
+  int maximumActiveCaptures = 0;
+  final current = base64Decode(_previewPng);
 
   @override
   Future<Uint8List?> thumbnail(
@@ -94,16 +102,65 @@ class _PickerLibrary extends CatalogLibrary {
     await saveCompletion?.future;
     applied = candidate;
   }
+
+  @override
+  Future<CatalogArtworkFrame> videoArtworkFrame(
+    CatalogTitle title,
+    Duration position,
+  ) async {
+    frameRequests.add(position);
+    activeCaptures++;
+    if (activeCaptures > maximumActiveCaptures) {
+      maximumActiveCaptures = activeCaptures;
+    }
+    try {
+      await pendingFrames[position]?.future;
+      if (frameFails) {
+        throw const CatalogMetadataException(
+          'The video frame could not be read.',
+        );
+      }
+      return await super.videoArtworkFrame(title, position);
+    } finally {
+      activeCaptures--;
+    }
+  }
+
+  @override
+  Future<void> selectVideoArtwork(
+    CatalogTitle title,
+    CatalogArtworkKind kind,
+    CatalogArtworkFrame frame,
+  ) async {
+    saveAttempts++;
+    if (saveFails) {
+      throw const CatalogMetadataException(
+        'The screenshot could not be saved. Your current artwork is still in use.',
+      );
+    }
+    await saveCompletion?.future;
+    appliedFrame = frame;
+    appliedFrameKind = kind;
+  }
 }
 
-CatalogTitle _title({bool matched = true}) => CatalogTitle(
-  id: 'series:my show',
-  name: 'My Show',
-  isSeries: true,
-  localIds: const ['series:my show'],
-  providerId: matched ? '42' : null,
-  videos: [CatalogVideo(files.file('My Show/Season 1/S01E01.Start.mp4'))],
-);
+CatalogTitle _title({bool matched = true, bool hasFirstEpisode = true}) =>
+    CatalogTitle(
+      id: 'series:my show',
+      name: 'My Show',
+      isSeries: true,
+      localIds: const ['series:my show'],
+      providerId: matched ? '42' : null,
+      videos: [
+        CatalogVideo(
+          files.file(
+            hasFirstEpisode
+                ? 'My Show/Season 1/S01E01.Start.mp4'
+                : 'My Show/Season 1/S01E02.Next.mp4',
+          ),
+        ),
+      ],
+    );
 
 Future<_PickerLibrary> _library({bool enabled = true}) async {
   final app =
@@ -123,6 +180,7 @@ Future<void> _open(
   WidgetTester tester,
   _PickerLibrary library, {
   bool matched = true,
+  bool hasFirstEpisode = true,
   VoidCallback? onReviewMatch,
 }) async {
   await tester.pumpWidget(
@@ -133,7 +191,7 @@ Future<void> _open(
             onPressed: () => openCatalogArtworkPicker(
               context,
               library,
-              _title(matched: matched),
+              _title(matched: matched, hasFirstEpisode: hasFirstEpisode),
               onReviewMatch: onReviewMatch,
             ),
             child: const Text('Open artwork'),
@@ -151,7 +209,7 @@ Future<void> _select(WidgetTester tester, CatalogArtworkKind kind) async {
     await _switchKind(tester, kind);
   }
   final option = find.byKey(Key('artwork-candidate-${kind.name}-0'));
-  await tester.ensureVisible(option);
+  await _reveal(tester, option);
   await tester.pumpAndSettle();
   await tester.tap(option);
   await tester.pumpAndSettle();
@@ -159,23 +217,81 @@ Future<void> _select(WidgetTester tester, CatalogArtworkKind kind) async {
 
 Future<void> _switchKind(WidgetTester tester, CatalogArtworkKind kind) async {
   final chip = find.byKey(Key('artwork-kind-${kind.name}'));
-  await tester.ensureVisible(chip);
+  await _reveal(tester, chip, delta: -200);
   await tester.pumpAndSettle();
   await tester.tap(chip);
   await tester.pumpAndSettle();
 }
+
+Future<void> _switchSource(WidgetTester tester, String source) async {
+  final chip = find.byKey(Key('artwork-source-$source'));
+  await _reveal(tester, chip, delta: -200);
+  await tester.pumpAndSettle();
+  await tester.tap(chip);
+  await tester.pumpAndSettle();
+}
+
+Future<void> _reveal(
+  WidgetTester tester,
+  Finder target, {
+  double delta = 200,
+}) async {
+  if (target.evaluate().isEmpty) {
+    final scrollable = find
+        .descendant(
+          of: find.byKey(const Key('artwork-screen')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(target, delta, scrollable: scrollable);
+  }
+  await tester.ensureVisible(target);
+}
+
+FilledButton _saveButton(WidgetTester tester) =>
+    tester.widget<FilledButton>(find.byKey(const Key('artwork-use-selected')));
+
+Slider _slider(WidgetTester tester) =>
+    tester.widget<Slider>(find.byKey(const Key('artwork-video-slider')));
 
 void main() {
   setUp(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
           if (call.method == 'loadPreferences') return '{}';
+          if (call.method == 'videoFrame') {
+            final arguments = call.arguments as Map;
+            return {
+              'bytes': base64Decode(_previewPng),
+              'durationMs': 120000,
+              'positionMs': arguments['positionMs'],
+            };
+          }
           return null;
         });
   });
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(CatalogLibrary.channel, null);
+  });
+
+  testWidgets('artwork opens as a dedicated screen with back navigation', (
+    tester,
+  ) async {
+    final library = await _library();
+    await _open(tester, library);
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byType(AppBar), findsOneWidget);
+    expect(
+      tester.getSize(find.byType(CatalogArtworkPicker)),
+      tester.view.physicalSize / tester.view.devicePixelRatio,
+    );
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogArtworkPicker), findsNothing);
+    expect(find.text('Open artwork'), findsOneWidget);
+    expect(library.saveAttempts, 0);
   });
 
   testWidgets('fetch, selection and cancellation retain current artwork', (
@@ -259,10 +375,12 @@ void main() {
     final library = await _library();
     library.fetchFails = true;
     await _open(tester, library);
+    await _reveal(tester, find.text('TMDB is offline. Try again.'));
+    await tester.pumpAndSettle();
     expect(find.text('TMDB is offline. Try again.'), findsOneWidget);
     expect(library.applied, isNull);
     library.fetchFails = false;
-    await tester.ensureVisible(find.text('Retry'));
+    await _reveal(tester, find.text('Retry'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
@@ -270,7 +388,7 @@ void main() {
     expect(find.text('1 posters from TMDB'), findsOneWidget);
     expect(find.text('TMDB is offline. Try again.'), findsNothing);
     await _select(tester, CatalogArtworkKind.poster);
-    await tester.ensureVisible(find.text('Refresh again'));
+    await _reveal(tester, find.text('Refresh again'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Refresh again'));
     await tester.pumpAndSettle();
@@ -296,9 +414,9 @@ void main() {
       expect(find.text('1920 × 1080 · No language'), findsOneWidget);
       expect(find.byKey(const Key('artwork-current-backdrop')), findsOneWidget);
       expect(library.thumbnailRequests, [false, true]);
-    await _switchKind(tester, CatalogArtworkKind.poster);
+      await _switchKind(tester, CatalogArtworkKind.poster);
       expect(find.text('1000 × 1500 · en'), findsOneWidget);
-    await _switchKind(tester, CatalogArtworkKind.backdrop);
+      await _switchKind(tester, CatalogArtworkKind.backdrop);
       await tester.tap(find.text('Use selected'));
       await tester.pumpAndSettle();
       expect(library.applied, same(backdrop));
@@ -311,6 +429,7 @@ void main() {
   ) async {
     final library = await _library(enabled: false);
     await _open(tester, library);
+    await _switchSource(tester, 'tmdb');
     expect(
       find.text('Enable TMDB in Library Settings to refresh artwork.'),
       findsOneWidget,
@@ -330,12 +449,13 @@ void main() {
       matched: false,
       onReviewMatch: () => reviewed = true,
     );
+    await _switchSource(tester, 'tmdb');
     expect(
       find.text('Choose a TMDB match for this show before refreshing artwork.'),
       findsOneWidget,
     );
     expect(library.refreshes, 0);
-    await tester.ensureVisible(find.text('Review match'));
+    await _reveal(tester, find.text('Review match'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Review match'));
     await tester.pumpAndSettle();
@@ -343,6 +463,231 @@ void main() {
     expect(find.byType(CatalogArtworkPicker), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('offline screenshot seeks on release and saves the chosen type', (
+    tester,
+  ) async {
+    final library = await _library(enabled: false);
+    library.saveCompletion = Completer<void>();
+    await _open(tester, library, matched: false);
+    expect(library.refreshes, 0);
+    expect(library.frameRequests, [Duration.zero]);
+    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+    expect(library.saveAttempts, 0);
+
+    await _switchKind(tester, CatalogArtworkKind.backdrop);
+    final sliderFinder = find.byKey(const Key('artwork-video-slider'));
+    await _reveal(tester, sliderFinder);
+    await tester.pumpAndSettle();
+    const seekValue = 45000.0;
+    _slider(tester).onChanged!(seekValue);
+    await tester.pump();
+    expect(library.frameRequests, [Duration.zero]);
+    expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+    expect(_saveButton(tester).onPressed, isNull);
+
+    _slider(tester).onChangeEnd!(seekValue);
+    await tester.pumpAndSettle();
+    expect(library.frameRequests, [Duration.zero, const Duration(seconds: 45)]);
+    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+    expect(_saveButton(tester).onPressed, isNotNull);
+    expect(library.saveAttempts, 0);
+    await tester.tap(find.text('Use screenshot'));
+    await tester.pump();
+    expect(find.text('Saving…'), findsOneWidget);
+    expect(find.byType(CatalogArtworkPicker), findsOneWidget);
+    expect(library.appliedFrame, isNull);
+
+    library.saveCompletion!.complete();
+    await tester.pumpAndSettle();
+    expect(library.appliedFrameKind, CatalogArtworkKind.backdrop);
+    expect(library.appliedFrame!.position, const Duration(seconds: 45));
+    expect(library.saveAttempts, 1);
+    expect(find.byType(CatalogArtworkPicker), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'moving again rejects a frame captured for the previous position',
+    (tester) async {
+      final library = await _library(enabled: false);
+      await _open(tester, library, matched: false);
+      await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
+      await tester.pumpAndSettle();
+      final oldFrame = Completer<void>();
+      library.pendingFrames[const Duration(seconds: 30)] = oldFrame;
+      const firstValue = 30000.0;
+      _slider(tester).onChanged!(firstValue);
+      _slider(tester).onChangeEnd!(firstValue);
+      await tester.pump();
+      expect(library.frameRequests.last, const Duration(seconds: 30));
+
+      const nextValue = 90000.0;
+      _slider(tester).onChanged!(nextValue);
+      await tester.pump();
+      oldFrame.complete();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+      expect(_saveButton(tester).onPressed, isNull);
+      expect(library.saveAttempts, 0);
+
+      _slider(tester).onChangeEnd!(nextValue);
+      await tester.pumpAndSettle();
+      expect(library.frameRequests.last, const Duration(seconds: 90));
+      await tester.tap(find.text('Use screenshot'));
+      await tester.pumpAndSettle();
+      expect(library.appliedFrame!.position, const Duration(seconds: 90));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('rapid releases queue only the latest screenshot position', (
+    tester,
+  ) async {
+    final library = await _library(enabled: false);
+    await _open(tester, library, matched: false);
+    await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
+    await tester.pumpAndSettle();
+    final oldFrame = Completer<void>();
+    final newFrame = Completer<void>();
+    library.pendingFrames[const Duration(seconds: 30)] = oldFrame;
+    library.pendingFrames[const Duration(seconds: 90)] = newFrame;
+
+    const firstValue = 30000.0;
+    _slider(tester).onChanged!(firstValue);
+    _slider(tester).onChangeEnd!(firstValue);
+    await tester.pump();
+    const intermediateValue = 60000.0;
+    _slider(tester).onChanged!(intermediateValue);
+    _slider(tester).onChangeEnd!(intermediateValue);
+    await tester.pump();
+    const nextValue = 90000.0;
+    _slider(tester).onChanged!(nextValue);
+    _slider(tester).onChangeEnd!(nextValue);
+    await tester.pump();
+    expect(library.frameRequests, [Duration.zero, const Duration(seconds: 30)]);
+    expect(library.maximumActiveCaptures, 1);
+    oldFrame.complete();
+    await tester.pump();
+    expect(library.frameRequests, [
+      Duration.zero,
+      const Duration(seconds: 30),
+      const Duration(seconds: 90),
+    ]);
+    expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+    expect(_saveButton(tester).onPressed, isNull);
+    expect(library.maximumActiveCaptures, 1);
+    newFrame.complete();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+    await tester.tap(find.text('Use screenshot'));
+    await tester.pumpAndSettle();
+    expect(library.appliedFrame!.position, const Duration(seconds: 90));
+    expect(library.saveAttempts, 1);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed screenshot capture retries without changing artwork', (
+    tester,
+  ) async {
+    final library = await _library(enabled: false);
+    library.frameFails = true;
+    await _open(tester, library, matched: false);
+    await _reveal(tester, find.text('The video frame could not be read.'));
+    await tester.pumpAndSettle();
+    expect(find.text('The video frame could not be read.'), findsOneWidget);
+    expect(_saveButton(tester).onPressed, isNull);
+    expect(library.saveAttempts, 0);
+
+    library.frameFails = false;
+    final retry = find.byKey(const Key('artwork-video-retry'));
+    await _reveal(tester, retry);
+    await tester.pumpAndSettle();
+    await tester.tap(retry);
+    await tester.pumpAndSettle();
+    expect(library.frameRequests, [Duration.zero, Duration.zero]);
+    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+    expect(_saveButton(tester).onPressed, isNotNull);
+    expect(library.saveAttempts, 0);
+    await tester.tap(find.text('Keep current'));
+    await tester.pumpAndSettle();
+    expect(library.appliedFrame, isNull);
+    expect(library.saveAttempts, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('failed screenshot save retains the frame for retry', (
+    tester,
+  ) async {
+    final library = await _library(enabled: false);
+    library.saveFails = true;
+    await _open(tester, library, matched: false);
+    await tester.tap(find.text('Use screenshot'));
+    await tester.pumpAndSettle();
+    expect(find.byType(CatalogArtworkPicker), findsOneWidget);
+    expect(
+      find.text(
+        'The screenshot could not be saved. Your current artwork is still in use.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+    expect(library.appliedFrame, isNull);
+
+    library.saveFails = false;
+    await tester.tap(find.text('Use screenshot'));
+    await tester.pumpAndSettle();
+    expect(library.appliedFrame, isNotNull);
+    expect(library.appliedFrameKind, CatalogArtworkKind.poster);
+    expect(library.saveAttempts, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'missing first episode explains why screenshots are unavailable',
+    (tester) async {
+      final library = await _library();
+      await _open(tester, library, hasFirstEpisode: false);
+      await _switchSource(tester, 'video');
+      expect(find.byKey(const Key('artwork-video-slider')), findsNothing);
+      expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+      expect(
+        find.text(
+          'S01E01 is not in this library. Add the first episode to capture a screenshot.',
+        ),
+        findsOneWidget,
+      );
+      expect(_saveButton(tester).onPressed, isNull);
+      expect(library.frameRequests, isEmpty);
+      expect(library.saveAttempts, 0);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final size in [
+    const Size(320, 568),
+    const Size(640, 360),
+    const Size(1024, 600),
+  ]) {
+    testWidgets('screenshot controls fit the artwork screen at $size', (
+      tester,
+    ) async {
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      final library = await _library(enabled: false);
+      await _open(tester, library, matched: false);
+      final slider = find.byKey(const Key('artwork-video-slider'));
+      await _reveal(tester, slider);
+      await tester.pumpAndSettle();
+      expect(slider.hitTestable(), findsOneWidget);
+      expect(find.text('Keep current').hitTestable(), findsOneWidget);
+      expect(find.text('Use screenshot').hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.text('Keep current'));
+      await tester.pumpAndSettle();
+      expect(library.saveAttempts, 0);
+    });
+  }
 
   testWidgets('empty artwork is explained and narrow layout remains usable', (
     tester,
@@ -352,7 +697,8 @@ void main() {
     final library = await _library();
     library.candidates = const [];
     await _open(tester, library);
-    await tester.ensureVisible(
+    await _reveal(
+      tester,
       find.text(
         'TMDB has no posters for this show. Your current artwork is still in use.',
       ),

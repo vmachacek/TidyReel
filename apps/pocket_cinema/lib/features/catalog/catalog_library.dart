@@ -162,6 +162,8 @@ List<CatalogTitle> groupCatalog(
   return result;
 }
 
+enum CatalogHomeView { carousel, cards }
+
 class CatalogLibrary extends ChangeNotifier {
   CatalogLibrary(
     this.controller, {
@@ -180,6 +182,7 @@ class CatalogLibrary extends ChangeNotifier {
   final CatalogDiscoveryWorker _discoveryWorker;
   final bool _injectedSource;
   Future<void>? _loading;
+  final _preferencesRestored = Completer<void>();
   List<StorageEntrySnapshot>? _catalogEntries;
   List<CatalogTitle> _localTitles = const [];
   List<CatalogTitle> _presentationTitles = const [];
@@ -193,6 +196,8 @@ class CatalogLibrary extends ChangeNotifier {
   Completer<void>? _discoveryIdle;
   String _catalogScope = '';
   bool metadataConfigured = false;
+  CatalogHomeView _homeView = CatalogHomeView.carousel;
+  CatalogHomeView get homeView => _homeView;
   bool _lockHardwareVolumeButtons = true;
   bool get lockHardwareVolumeButtons => _lockHardwareVolumeButtons;
   String? settingsError;
@@ -372,6 +377,14 @@ class CatalogLibrary extends ChangeNotifier {
 
   Future<void> retryMatching() => matcher.retry(_localTitles, _catalogScope);
 
+  Future<void> setHomeView(CatalogHomeView value) async {
+    await _preferencesRestored.future;
+    if (_disposed || _homeView == value) return;
+    _homeView = value;
+    notifyListeners();
+    await persist();
+  }
+
   Future<void> setLockHardwareVolumeButtons(bool value) async {
     await load();
     if (_disposed || _lockHardwareVolumeButtons == value) return;
@@ -408,6 +421,11 @@ class CatalogLibrary extends ChangeNotifier {
       final raw = await channel.invokeMethod<String>('loadPreferences');
       if (_disposed) return;
       final data = jsonDecode(raw ?? '{}') as Map<String, dynamic>;
+      _homeView =
+          CatalogHomeView.values
+              .where((view) => view.name == data['homeView'])
+              .firstOrNull ??
+          CatalogHomeView.carousel;
       final volumeLock = data['lockHardwareVolumeButtons'];
       if (volumeLock is bool) _lockHardwareVolumeButtons = volumeLock;
       saved.addAll((data['saved'] as List<dynamic>? ?? []).cast<String>());
@@ -440,6 +458,8 @@ class CatalogLibrary extends ChangeNotifier {
       if (!_disposed) notifyListeners();
     } on Object {
       /* Preferences are optional on non-Android test hosts. */
+    } finally {
+      _preferencesRestored.complete();
     }
     if (!_injectedSource && !_disposed) {
       try {
@@ -459,6 +479,7 @@ class CatalogLibrary extends ChangeNotifier {
   }
 
   String _preferencesJson() => jsonEncode({
+    'homeView': _homeView.name,
     'lockHardwareVolumeButtons': _lockHardwareVolumeButtons,
     'saved': saved.toList(),
     'positions': positions,

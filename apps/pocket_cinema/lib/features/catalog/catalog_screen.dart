@@ -351,6 +351,39 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       tooltip: 'Library settings',
                       icon: const Icon(Icons.tune),
                     ),
+                    if (destination == 0)
+                      SegmentedButton<CatalogHomeView>(
+                        key: const Key('home-view-switch'),
+                        segments: const [
+                          ButtonSegment(
+                            value: CatalogHomeView.carousel,
+                            icon: Icon(Icons.view_carousel_outlined),
+                            label: Text(
+                              'Carousel',
+                              key: Key('home-view-carousel'),
+                            ),
+                            tooltip: 'Browse the carousel',
+                          ),
+                          ButtonSegment(
+                            value: CatalogHomeView.cards,
+                            icon: Icon(Icons.grid_view_outlined),
+                            label: Text('Cards', key: Key('home-view-cards')),
+                            tooltip: 'Browse title cards',
+                          ),
+                        ],
+                        selected: {library.homeView},
+                        onSelectionChanged: (selection) =>
+                            unawaited(library.setHomeView(selection.single)),
+                        showSelectedIcon: false,
+                        style: SegmentedButton.styleFrom(
+                          foregroundColor: peach,
+                          backgroundColor: panel,
+                          selectedForegroundColor: Colors.white,
+                          selectedBackgroundColor: const Color(0x33FF5A36),
+                          side: const BorderSide(color: Color(0xFF32353D)),
+                          minimumSize: const Size(48, 48),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -383,7 +416,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
                   ),
                   const SizedBox(height: 20),
                 ],
-                if (spotlight != null && query.isEmpty && destination == 0) ...[
+                if (spotlight != null &&
+                    query.isEmpty &&
+                    destination == 0 &&
+                    library.homeView == CatalogHomeView.carousel) ...[
                   JukeboxHero(
                     titles: carouselTitles,
                     selectedTitle: spotlight,
@@ -417,11 +453,15 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       '${visible.length} titles · ${state.entries.length} files',
                       style: const TextStyle(color: peach, fontSize: 12),
                     ),
-                    IconButton(
-                      onPressed: () => setState(() => listView = !listView),
-                      tooltip: listView ? 'Poster view' : 'List view',
-                      icon: Icon(listView ? Icons.grid_view : Icons.view_list),
-                    ),
+                    if (destination != 0 ||
+                        library.homeView == CatalogHomeView.carousel)
+                      IconButton(
+                        onPressed: () => setState(() => listView = !listView),
+                        tooltip: listView ? 'Poster view' : 'List view',
+                        icon: Icon(
+                          listView ? Icons.grid_view : Icons.view_list,
+                        ),
+                      ),
                     IconButton(
                       onPressed: state.canRescan
                           ? () => widget.controller.scan(state.root!)
@@ -485,7 +525,9 @@ class _CatalogScreenState extends State<CatalogScreen> {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       section(heading, '${titles.length} available'),
-      if (listView) ...[
+      if (listView &&
+          (destination != 0 ||
+              library.homeView == CatalogHomeView.carousel)) ...[
         for (final title in titles)
           Padding(
             padding: const EdgeInsets.only(bottom: 10),

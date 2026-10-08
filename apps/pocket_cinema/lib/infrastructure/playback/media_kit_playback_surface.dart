@@ -5,9 +5,14 @@ import '../../features/risk_spike/playback_session_coordinator.dart';
 import 'media_kit_playback_engine.dart';
 
 final class MediaKitPlaybackSurface extends StatelessWidget {
-  const MediaKitPlaybackSurface({required this.session, super.key});
+  const MediaKitPlaybackSurface({
+    required this.session,
+    this.wakelock = true,
+    super.key,
+  });
 
   final PlaybackSessionCoordinator session;
+  final bool wakelock;
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +24,7 @@ final class MediaKitPlaybackSurface extends StatelessWidget {
       controller: engine.videoController,
       fit: BoxFit.contain,
       controls: NoVideoControls,
+      wakelock: wakelock,
     );
   }
 }

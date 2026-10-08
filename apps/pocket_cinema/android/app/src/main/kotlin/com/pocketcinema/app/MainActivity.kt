@@ -38,11 +38,13 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onResume() {
         super.onResume()
+        playerControls?.resume()
         renderingPerformance?.resume()
         enterImmersiveMode()
     }
 
     override fun onPause() {
+        playerControls?.pause()
         renderingPerformance?.pause()
         super.onPause()
     }
@@ -110,7 +112,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         catalogPlatform = CatalogPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
-        playerControls = PlayerControlsPlatform(flutterEngine.dartExecutor.binaryMessenger)
+        playerControls = PlayerControlsPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         renderingPerformance = RenderingPerformancePlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         rootPermissionStore = AndroidRootPermissionStore(contentResolver)
         scanSessionRegistry = ScanSessionRegistry()

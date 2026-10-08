@@ -22,6 +22,8 @@ class _UnusedProbe implements MediaProbe {
 void main() {
   const controlsChannel = MethodChannel('com.pocketcinema.app/player_controls');
   late List<MethodCall> controlsCalls;
+  Iterable<MethodCall> lockCalls() =>
+      controlsCalls.where((call) => call.method == 'setLocked');
 
   setUp(() {
     controlsCalls = [];
@@ -86,7 +88,7 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       expect(find.byKey(const Key('lock-player')), findsNothing);
       expect(find.byTooltip('Back to library'), findsNothing);
-      expect(controlsCalls.map((call) => call.arguments), [false]);
+      expect(lockCalls().map((call) => call.arguments), [false]);
       await tester.tapAt(const Offset(150, 150));
       await tester.pump();
       expect(find.byKey(const Key('lock-player')), findsOneWidget);
@@ -102,7 +104,7 @@ void main() {
       await tester.tap(lock);
       await tester.pump();
       expect(find.byKey(const Key('unlock-player')), findsNothing);
-      expect(controlsCalls.map((call) => call.arguments), [false]);
+      expect(lockCalls().map((call) => call.arguments), [false]);
       final hold = await tester.startGesture(tester.getCenter(lock));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 2100));
@@ -111,11 +113,11 @@ void main() {
       expect(find.byKey(const Key('unlock-player')), findsOneWidget);
       expect(find.byType(IconButton), findsNothing);
       expect(find.byType(PlaybackStatsOverlay), findsNothing);
-      expect(controlsCalls.map((call) => call.method), [
+      expect(lockCalls().map((call) => call.method), [
         'setLocked',
         'setLocked',
       ]);
-      expect(controlsCalls.map((call) => call.arguments), [false, true]);
+      expect(lockCalls().map((call) => call.arguments), [false, true]);
       await tester.tapAt(const Offset(150, 150));
       await tester.binding.handlePopRoute();
       await tester.pump();
@@ -124,7 +126,7 @@ void main() {
       await tester.tap(unlock);
       await tester.pump();
       expect(unlock, findsOneWidget);
-      expect(controlsCalls.map((call) => call.arguments), [false, true]);
+      expect(lockCalls().map((call) => call.arguments), [false, true]);
       final release = await tester.startGesture(tester.getCenter(unlock));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 2100));
@@ -132,7 +134,7 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('lock-player')), findsOneWidget);
       expect(find.byTooltip('Back to library'), findsOneWidget);
-      expect(controlsCalls.map((call) => call.arguments), [false, true, false]);
+      expect(lockCalls().map((call) => call.arguments), [false, true, false]);
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -148,15 +150,15 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2100));
     await hold.up();
     await tester.pump();
-    expect(controlsCalls.map((call) => call.arguments), [false, true]);
+    expect(lockCalls().map((call) => call.arguments), [false, true]);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    expect(controlsCalls.map((call) => call.arguments), [false, true, false]);
+    expect(lockCalls().map((call) => call.arguments), [false, true, false]);
 
     await open(tester);
     expect(find.byKey(const Key('lock-player')), findsOneWidget);
-    expect(controlsCalls.map((call) => call.arguments), [
+    expect(lockCalls().map((call) => call.arguments), [
       false,
       true,
       false,

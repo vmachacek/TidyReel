@@ -6,6 +6,8 @@ import android.view.KeyEvent
 class PlayerControlsLock {
     private var locked = false
 
+    val isLocked: Boolean get() = locked
+
     fun setLocked(value: Boolean) {
         locked = value
     }

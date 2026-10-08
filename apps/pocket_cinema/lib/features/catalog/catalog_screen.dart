@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:media_platform_storage/media_platform_storage.dart';
 
 import '../../app/app_brand.dart';
+import '../../app/app_icon.dart';
 import '../kill_switch/kill_switch_scope.dart';
 import '../kill_switch/kill_switch_settings.dart';
 import '../risk_spike/risk_spike_controller.dart';
@@ -144,17 +145,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
                     key: const Key('folder-onboarding'),
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Center(
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(28),
-                          child: Image.asset(
-                            'assets/branding/pocket_play.png',
-                            width: 112,
-                            height: 112,
-                            excludeFromSemantics: true,
-                          ),
-                        ),
-                      ),
+                      const Center(child: AppIcon(size: 112)),
                       const SizedBox(height: 32),
                       Text(
                         'Welcome to Pocket Cinema',

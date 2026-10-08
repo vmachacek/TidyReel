@@ -348,34 +348,6 @@ class _JukeboxCarouselState extends State<JukeboxCarousel> {
                 );
               },
             ),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  widget.covers.length == 1
-                      ? 'Only title'
-                      : _selected == 0
-                      ? 'Start of library'
-                      : _selected == last
-                      ? 'End of library'
-                      : 'Flick to browse',
-                  style: const TextStyle(
-                    color: Color(0xFFAA8982),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Text(
-                  '${_selected + 1} / ${widget.covers.length}',
-                  key: const Key('jukebox-position'),
-                  style: const TextStyle(
-                    color: Color(0xFFFFB4A3),
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
           ],
         ),
       ),

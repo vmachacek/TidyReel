@@ -57,6 +57,22 @@ List<String> _titleOrder(WidgetTester tester) => tester
     .map((title) => title.name)
     .toList();
 
+void _expectCarouselPosition(WidgetTester tester, int position, int count) {
+  final title = tester
+      .widget<JukeboxHero>(find.byType(JukeboxHero))
+      .selectedTitle
+      .name;
+  expect(
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is Semantics &&
+          widget.properties.label == 'Browse your library' &&
+          widget.properties.value == '$position of $count: $title',
+    ),
+    findsOneWidget,
+  );
+}
+
 StorageEntrySnapshot _modifiedFile(String path, int day) {
   final file = files.file(path);
   return StorageEntrySnapshot(
@@ -105,7 +121,7 @@ void main() {
 
       expect(_titleOrder(tester), ['Zulu', 'Beta Show', 'Gamma Show', 'Alpha']);
       expect(_selectedTitle(tester), 'Zulu');
-      expect(find.text('1 / 4'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 4);
       await tester.tap(find.byKey(const Key('jukebox-next')));
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Beta Show');
@@ -121,7 +137,7 @@ void main() {
       await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Zulu', 'Alpha', 'Gamma Show']);
       expect(_selectedTitle(tester), 'Beta Show');
-      expect(find.text('1 / 4'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 4);
 
       await tester.scrollUntilVisible(
         find.text('Movies').hitTestable(),
@@ -133,7 +149,7 @@ void main() {
       await settleCatalog(tester);
       expect(_titleOrder(tester), ['Zulu', 'Alpha']);
       expect(_selectedTitle(tester), 'Zulu');
-      expect(find.text('1 / 2'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 2);
       await tester.tap(find.text('TV Shows'));
       await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Gamma Show']);
@@ -176,7 +192,7 @@ void main() {
     await settleCatalog(tester);
     expect(_titleOrder(tester), ['My Show', 'Zulu']);
     expect(_selectedTitle(tester), 'My Show');
-    expect(find.text('1 / 2'), findsOneWidget);
+    _expectCarouselPosition(tester, 1, 2);
     expect(
       tester.widget<PageView>(find.byType(PageView)).controller!.page,
       closeTo(0, .001),
@@ -224,7 +240,7 @@ void main() {
     );
     await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Zulu');
-    expect(find.text('1 / 2'), findsOneWidget);
+    _expectCarouselPosition(tester, 1, 2);
 
     preferences.complete(
       jsonEncode({
@@ -234,7 +250,7 @@ void main() {
     );
     await settleCatalog(tester);
     expect(_selectedTitle(tester), 'Alpha');
-    expect(find.text('2 / 2'), findsOneWidget);
+    _expectCarouselPosition(tester, 2, 2);
     expect(
       tester.widget<PageView>(find.byType(PageView)).controller!.page,
       closeTo(1, .001),
@@ -361,7 +377,7 @@ void main() {
     expect(selectedHero.library.isSaved(firstTitle), isFalse);
     expect(_titleOrder(tester), ['Alpha', 'Zulu']);
     expect(_selectedTitle(tester), 'Alpha');
-    expect(find.text('1 / 2'), findsOneWidget);
+    _expectCarouselPosition(tester, 1, 2);
     expect(
       tester.widget<PageView>(find.byType(PageView)).controller!.page,
       closeTo(0, .001),
@@ -382,7 +398,7 @@ void main() {
     expect(selectedHero.library.isSaved(selected), isFalse);
     expect(_titleOrder(tester), ['Zulu', 'Alpha']);
     expect(_selectedTitle(tester), 'Alpha');
-    expect(find.text('2 / 2'), findsOneWidget);
+    _expectCarouselPosition(tester, 2, 2);
     expect(
       tester.widget<PageView>(find.byType(PageView)).controller!.page,
       closeTo(1, .001),
@@ -425,7 +441,7 @@ void main() {
       await tester.tap(find.byKey(const Key('jukebox-next')));
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
-      expect(find.text('2 / 3'), findsOneWidget);
+      _expectCarouselPosition(tester, 2, 3);
 
       await tester.ensureVisible(find.text('A–Z'));
       await tester.tap(find.text('A–Z'));
@@ -437,7 +453,7 @@ void main() {
       );
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
-      expect(find.text('1 / 3'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 3);
 
       await tester.scrollUntilVisible(
         find.text('Movies').hitTestable(),
@@ -448,13 +464,13 @@ void main() {
       await tester.tap(find.text('Movies'));
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
-      expect(find.text('1 / 2'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 2);
 
       await tester.tap(find.text('TV Shows'));
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'My Show');
-      expect(find.text('1 / 1'), findsOneWidget);
-      expect(find.text('Only title'), findsOneWidget);
+      _expectCarouselPosition(tester, 1, 1);
+      expect(find.text('Only title'), findsNothing);
       expect(tester.takeException(), isNull);
     },
   );

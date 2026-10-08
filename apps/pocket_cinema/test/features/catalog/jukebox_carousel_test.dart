@@ -36,6 +36,12 @@ Finder get _stage => find.byKey(const Key('jukebox-stage'));
 Finder get _previous => find.byKey(const Key('jukebox-previous'));
 Finder get _next => find.byKey(const Key('jukebox-next'));
 
+Finder _selection(int position, int count) => find.byWidgetPredicate(
+  (widget) =>
+      widget is Semantics &&
+      widget.properties.value == '$position of $count: Title ${position - 1}',
+);
+
 RenderBox _faceBox(WidgetTester tester, int index) {
   final transform = tester.widget<Transform>(
     find.byKey(Key('jukebox-cover-$index')),
@@ -113,38 +119,32 @@ void main() {
     await tester.pumpWidget(_app(count: 3, onSelected: selections.add));
     await tester.pumpAndSettle();
 
-    expect(find.text('1 / 3'), findsOneWidget);
-    expect(find.text('Start of library'), findsOneWidget);
+    expect(_selection(1, 3), findsOneWidget);
+    expect(find.text('Start of library'), findsNothing);
+    expect(find.text('1 / 3'), findsNothing);
     expect(tester.widget<IconButton>(_previous).onPressed, isNull);
-    expect(
-      find.byWidgetPredicate(
-        (widget) =>
-            widget is Semantics && widget.properties.value == '1 of 3: Title 0',
-      ),
-      findsOneWidget,
-    );
 
     await tester.tap(_next);
     await tester.pumpAndSettle();
-    expect(find.text('2 / 3'), findsOneWidget);
-    expect(find.text('Flick to browse'), findsOneWidget);
+    expect(_selection(2, 3), findsOneWidget);
+    expect(find.text('Flick to browse'), findsNothing);
     expect(selections.last, 1);
 
     await tester.tap(_next);
     await tester.pumpAndSettle();
-    expect(find.text('3 / 3'), findsOneWidget);
-    expect(find.text('End of library'), findsOneWidget);
+    expect(_selection(3, 3), findsOneWidget);
+    expect(find.text('End of library'), findsNothing);
     expect(tester.widget<IconButton>(_next).onPressed, isNull);
     expect(selections.last, 2);
 
     await tester.tap(_next);
     await tester.pumpAndSettle();
-    expect(find.text('3 / 3'), findsOneWidget);
+    expect(_selection(3, 3), findsOneWidget);
     await tester.tap(_previous);
     await tester.pumpAndSettle();
     await tester.tap(_previous);
     await tester.pumpAndSettle();
-    expect(find.text('1 / 3'), findsOneWidget);
+    expect(_selection(1, 3), findsOneWidget);
     expect(tester.widget<IconButton>(_previous).onPressed, isNull);
     expect(selections, [1, 2, 1, 0]);
     expect(tester.takeException(), isNull);
@@ -189,7 +189,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 80));
       await gesture.up();
       await tester.pumpAndSettle();
-      expect(find.text('2 / 5'), findsOneWidget);
+      expect(_selection(2, 5), findsOneWidget);
       expect(selections.last, 1);
       expect(controller.page, closeTo(1, .001));
       expect(activations, isEmpty);
@@ -274,13 +274,13 @@ void main() {
 
     await tester.fling(_stage, const Offset(260, 0), 1800);
     await tester.pumpAndSettle();
-    expect(find.text('1 / 3'), findsOneWidget);
+    expect(_selection(1, 3), findsOneWidget);
     for (var attempt = 0; attempt < 4; attempt++) {
       await tester.fling(_stage, const Offset(-260, 0), 1800);
       await tester.pumpAndSettle();
     }
-    expect(find.text('3 / 3'), findsOneWidget);
-    expect(find.text('End of library'), findsOneWidget);
+    expect(_selection(3, 3), findsOneWidget);
+    expect(find.text('End of library'), findsNothing);
     expect(tester.widget<IconButton>(_next).onPressed, isNull);
     expect(selections, isNotEmpty);
     expect(selections.every((index) => index >= 0 && index < 3), isTrue);
@@ -289,8 +289,8 @@ void main() {
       await tester.fling(_stage, const Offset(260, 0), 1800);
       await tester.pumpAndSettle();
     }
-    expect(find.text('1 / 3'), findsOneWidget);
-    expect(find.text('Start of library'), findsOneWidget);
+    expect(_selection(1, 3), findsOneWidget);
+    expect(find.text('Start of library'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 
@@ -312,7 +312,7 @@ void main() {
     // The transformed artwork is decorative; the stage receives this tap.
     await tester.tap(find.text('Cover 3'), warnIfMissed: false);
     await tester.pumpAndSettle();
-    expect(find.text('4 / 5'), findsOneWidget);
+    expect(_selection(4, 5), findsOneWidget);
     expect(selections.last, 3);
     expect(activations, isEmpty);
     await tester.tap(_stage);
@@ -334,10 +334,10 @@ void main() {
     await gesture.cancel();
     await tester.pumpAndSettle();
 
-    expect(find.text('2 / 3'), findsOneWidget);
+    expect(_selection(2, 3), findsOneWidget);
     await tester.tap(_next);
     await tester.pumpAndSettle();
-    expect(find.text('3 / 3'), findsOneWidget);
+    expect(_selection(3, 3), findsOneWidget);
     expect(activations, isEmpty);
     expect(tester.takeException(), isNull);
   });
@@ -347,14 +347,14 @@ void main() {
     final selections = <int>[];
     await tester.pumpWidget(_app(count: 1, onSelected: selections.add));
     await tester.pumpAndSettle();
-    expect(find.text('1 / 1'), findsOneWidget);
-    expect(find.text('Only title'), findsOneWidget);
+    expect(_selection(1, 1), findsOneWidget);
+    expect(find.text('Only title'), findsNothing);
     expect(tester.widget<IconButton>(_previous).onPressed, isNull);
     expect(tester.widget<IconButton>(_next).onPressed, isNull);
 
     await tester.fling(_stage, const Offset(-260, 0), 1800);
     await tester.pumpAndSettle();
-    expect(find.text('1 / 1'), findsOneWidget);
+    expect(_selection(1, 1), findsOneWidget);
     expect(selections, isEmpty);
     expect(tester.takeException(), isNull);
   });
@@ -375,17 +375,17 @@ void main() {
     await _surface(tester, const Size(1200, 900));
     await tester.pumpWidget(_app(initialIndex: 4));
     await tester.pumpAndSettle();
-    expect(find.text('5 / 5'), findsOneWidget);
+    expect(_selection(5, 5), findsOneWidget);
 
     await tester.binding.setSurfaceSize(const Size(390, 844));
     await tester.pumpAndSettle();
-    expect(find.text('5 / 5'), findsOneWidget);
+    expect(_selection(5, 5), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(_app(count: 2, initialIndex: 4));
     await tester.pumpAndSettle();
-    expect(find.text('2 / 2'), findsOneWidget);
-    expect(find.text('End of library'), findsOneWidget);
+    expect(_selection(2, 2), findsOneWidget);
+    expect(find.text('End of library'), findsNothing);
     expect(tester.widget<IconButton>(_next).onPressed, isNull);
     expect(tester.takeException(), isNull);
   });

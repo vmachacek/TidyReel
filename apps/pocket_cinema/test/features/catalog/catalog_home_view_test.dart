@@ -130,7 +130,15 @@ void main() {
       tester.widget<JukeboxHero>(find.byType(JukeboxHero)).selectedTitle.name,
       'Alpha',
     );
-    expect(find.text('2 / 2'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Semantics &&
+            widget.properties.label == 'Browse your library' &&
+            widget.properties.value == '2 of 2: Alpha',
+      ),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
   });
 

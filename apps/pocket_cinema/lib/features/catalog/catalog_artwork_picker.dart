@@ -46,6 +46,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
   late _ArtworkSource _source;
   CatalogArtworkFrame? _videoFrame;
   Duration _videoDuration = Duration.zero;
+  bool _focusStart = true;
   double _positionMs = 0;
   int _frameRequest = 0;
   bool _loadingFrame = false;
@@ -64,6 +65,19 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
   bool get _matched => widget.title.providerId?.isNotEmpty == true;
   bool get _canFetch => _enabled && _matched;
   bool get _fromVideo => _source == _ArtworkSource.video;
+  Duration get _videoRangeDuration =>
+      _focusStart && _videoDuration > const Duration(minutes: 1)
+      ? const Duration(minutes: 1)
+      : _videoDuration;
+  double get _sliderMaximum => math
+      .max(
+        0,
+        math.min(
+          _videoRangeDuration.inMilliseconds,
+          _videoDuration.inMilliseconds - 1,
+        ),
+      )
+      .toDouble();
   bool get _canSave =>
       !_saving &&
       (_fromVideo
@@ -211,7 +225,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
 
   void _seekFrame(double position) {
     setState(() {
-      _positionMs = position;
+      _positionMs = position.clamp(0, _sliderMaximum);
       _videoFrame = null;
       _frameError = null;
       _saveError = null;
@@ -219,6 +233,15 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
       _queuedFrame = false;
       _frameRequest++;
     });
+  }
+
+  void _changeVideoRange(bool focusStart) {
+    if (_saving || focusStart == _focusStart) return;
+    setState(() => _focusStart = focusStart);
+    if (_positionMs > _sliderMaximum) {
+      _seekFrame(_sliderMaximum);
+      unawaited(_loadFrame());
+    }
   }
 
   String _time(Duration time) {
@@ -378,7 +401,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
         'S01E01 is not in this library. Add the first episode to capture a screenshot.',
       );
     }
-    final maximum = math.max(0, _videoDuration.inMilliseconds - 1).toDouble();
+    final maximum = _sliderMaximum;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -397,6 +420,24 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
           const Text('The preview shows how the frame fits a poster.'),
         ],
         const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            ChoiceChip(
+              key: const Key('artwork-range-start'),
+              label: const Text('Start (first minute)'),
+              selected: _focusStart,
+              onSelected: _saving ? null : (_) => _changeVideoRange(true),
+            ),
+            ChoiceChip(
+              key: const Key('artwork-range-whole'),
+              label: const Text('Whole video'),
+              selected: !_focusStart,
+              onSelected: _saving ? null : (_) => _changeVideoRange(false),
+            ),
+          ],
+        ),
         Slider(
           key: const Key('artwork-video-slider'),
           value: _positionMs.clamp(0, maximum),
@@ -411,7 +452,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text(_time(Duration(milliseconds: _positionMs.round()))),
-            Text(_time(_videoDuration)),
+            Text(_time(_videoRangeDuration)),
           ],
         ),
         if (_loadingFrame) ...[

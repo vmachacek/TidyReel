@@ -231,6 +231,26 @@ Future<void> _switchSource(WidgetTester tester, String source) async {
   await tester.pumpAndSettle();
 }
 
+Future<void> _switchRange(
+  WidgetTester tester,
+  String range, {
+  bool settle = true,
+}) async {
+  final chip = find.byKey(Key('artwork-range-$range'));
+  await _reveal(tester, chip);
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
+  await tester.tap(chip);
+  if (settle) {
+    await tester.pumpAndSettle();
+  } else {
+    await tester.pump();
+  }
+}
+
 Future<void> _reveal(
   WidgetTester tester,
   Finder target, {
@@ -255,7 +275,9 @@ Slider _slider(WidgetTester tester) =>
     tester.widget<Slider>(find.byKey(const Key('artwork-video-slider')));
 
 void main() {
+  var videoDurationMs = 120000;
   setUp(() {
+    videoDurationMs = 120000;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
           if (call.method == 'loadPreferences') return '{}';
@@ -263,7 +285,7 @@ void main() {
             final arguments = call.arguments as Map;
             return {
               'bytes': base64Decode(_previewPng),
-              'durationMs': 120000,
+              'durationMs': videoDurationMs,
               'positionMs': arguments['positionMs'],
             };
           }
@@ -507,11 +529,185 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('screenshot slider starts with the first minute selected', (
+    tester,
+  ) async {
+    final library = await _library(enabled: false);
+    await _open(tester, library, matched: false);
+    await _reveal(tester, find.byKey(const Key('artwork-range-start')));
+    await tester.pumpAndSettle();
+
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const Key('artwork-range-start')))
+          .selected,
+      isTrue,
+    );
+    expect(
+      tester
+          .widget<ChoiceChip>(find.byKey(const Key('artwork-range-whole')))
+          .selected,
+      isFalse,
+    );
+    expect(find.text('Start (first minute)'), findsOneWidget);
+    expect(find.text('Whole video'), findsOneWidget);
+    expect(_slider(tester).max, 60000);
+    expect(find.text('1:00'), findsOneWidget);
+    expect(library.frameRequests, [Duration.zero]);
+    expect(library.saveAttempts, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+    'whole video preserves a selected frame and allows a later save',
+    (tester) async {
+      final library = await _library(enabled: false);
+      await _open(tester, library, matched: false);
+      await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
+      await tester.pumpAndSettle();
+      _slider(tester).onChanged!(45000);
+      _slider(tester).onChangeEnd!(45000);
+      await tester.pumpAndSettle();
+
+      await _switchRange(tester, 'whole');
+      expect(_slider(tester).max, 119999);
+      expect(_slider(tester).value, 45000);
+      expect(_saveButton(tester).onPressed, isNotNull);
+      expect(library.frameRequests, [
+        Duration.zero,
+        const Duration(seconds: 45),
+      ]);
+      expect(
+        tester
+            .widget<ChoiceChip>(find.byKey(const Key('artwork-range-whole')))
+            .selected,
+        isTrue,
+      );
+
+      _slider(tester).onChanged!(90000);
+      _slider(tester).onChangeEnd!(90000);
+      await tester.pumpAndSettle();
+      expect(library.saveAttempts, 0);
+      await tester.tap(find.text('Use screenshot'));
+      await tester.pumpAndSettle();
+      expect(library.appliedFrame!.position, const Duration(seconds: 90));
+      expect(library.saveAttempts, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'returning to Start recaptures a frame at the first minute limit',
+    (tester) async {
+      final library = await _library(enabled: false);
+      await _open(tester, library, matched: false);
+      await _switchRange(tester, 'whole');
+      _slider(tester).onChanged!(90000);
+      _slider(tester).onChangeEnd!(90000);
+      await tester.pumpAndSettle();
+      final clampedFrame = Completer<void>();
+      library.pendingFrames[const Duration(seconds: 60)] = clampedFrame;
+
+      await _switchRange(tester, 'start', settle: false);
+      expect(_slider(tester).max, 60000);
+      expect(_slider(tester).value, 60000);
+      expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+      expect(_saveButton(tester).onPressed, isNull);
+      expect(library.frameRequests, [
+        Duration.zero,
+        const Duration(seconds: 90),
+        const Duration(seconds: 60),
+      ]);
+
+      clampedFrame.complete();
+      await tester.pumpAndSettle();
+      expect(_saveButton(tester).onPressed, isNotNull);
+      expect(library.saveAttempts, 0);
+      await tester.tap(find.text('Use screenshot'));
+      await tester.pumpAndSettle();
+      expect(library.appliedFrame!.position, const Duration(seconds: 60));
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'Start queues its clamped frame when a later capture is running',
+    (tester) async {
+      final library = await _library(enabled: false);
+      await _open(tester, library, matched: false);
+      await _switchRange(tester, 'whole');
+      final oldFrame = Completer<void>();
+      final clampedFrame = Completer<void>();
+      library.pendingFrames[const Duration(seconds: 90)] = oldFrame;
+      library.pendingFrames[const Duration(seconds: 60)] = clampedFrame;
+      _slider(tester).onChanged!(90000);
+      _slider(tester).onChangeEnd!(90000);
+      await tester.pump();
+
+      await _switchRange(tester, 'start', settle: false);
+      expect(_slider(tester).max, 60000);
+      expect(_slider(tester).value, 60000);
+      expect(library.frameRequests, [
+        Duration.zero,
+        const Duration(seconds: 90),
+      ]);
+      oldFrame.complete();
+      await tester.pump();
+      expect(library.frameRequests, [
+        Duration.zero,
+        const Duration(seconds: 90),
+        const Duration(seconds: 60),
+      ]);
+      expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+      expect(_saveButton(tester).onPressed, isNull);
+      expect(library.maximumActiveCaptures, 1);
+
+      clampedFrame.complete();
+      await tester.pumpAndSettle();
+      expect(_slider(tester).value, 60000);
+      expect(library.saveAttempts, 0);
+      await tester.tap(find.text('Use screenshot'));
+      await tester.pumpAndSettle();
+      expect(library.appliedFrame!.position, const Duration(seconds: 60));
+      expect(library.saveAttempts, 1);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('short videos keep both ranges within the available duration', (
+    tester,
+  ) async {
+    videoDurationMs = 30000;
+    final library = await _library(enabled: false);
+    await _open(tester, library, matched: false);
+    await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
+    await tester.pumpAndSettle();
+    expect(_slider(tester).max, 29999);
+    expect(find.text('0:30'), findsOneWidget);
+
+    await _switchRange(tester, 'whole');
+    expect(_slider(tester).max, 29999);
+    _slider(tester).onChanged!(_slider(tester).max);
+    _slider(tester).onChangeEnd!(_slider(tester).max);
+    await tester.pumpAndSettle();
+    await _switchRange(tester, 'start');
+    expect(_slider(tester).max, 29999);
+    expect(_slider(tester).value, 29999);
+    expect(library.frameRequests, [
+      Duration.zero,
+      const Duration(milliseconds: 29999),
+    ]);
+    expect(_saveButton(tester).onPressed, isNotNull);
+    expect(library.saveAttempts, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets(
     'moving again rejects a frame captured for the previous position',
     (tester) async {
       final library = await _library(enabled: false);
       await _open(tester, library, matched: false);
+      await _switchRange(tester, 'whole');
       await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
       await tester.pumpAndSettle();
       final oldFrame = Completer<void>();
@@ -546,6 +742,7 @@ void main() {
   ) async {
     final library = await _library(enabled: false);
     await _open(tester, library, matched: false);
+    await _switchRange(tester, 'whole');
     await _reveal(tester, find.byKey(const Key('artwork-video-slider')));
     await tester.pumpAndSettle();
     final oldFrame = Completer<void>();

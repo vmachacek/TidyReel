@@ -12,7 +12,6 @@ import '../risk_spike/widgets/failure_panel.dart';
 import 'catalog_library.dart';
 import 'catalog_screen.dart';
 import 'next_episode_prompt.dart';
-import 'playback_stats_overlay.dart';
 import 'hold_to_activate_button.dart';
 
 class CinemaPlayer extends StatefulWidget {
@@ -666,15 +665,6 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                         ),
                       ),
                   ],
-                  if (!locked && !showAutoplay)
-                    Positioned(
-                      top: visible ? 76 : 12,
-                      right: 16,
-                      child: PlaybackStatsOverlay(
-                        key: ValueKey(video.id),
-                        player: () => player,
-                      ),
-                    ),
                   if (showAutoplay)
                     Positioned(
                       top: promptTop,

@@ -604,6 +604,25 @@ class _CatalogScreenState extends State<CatalogScreen> {
                 child: const Text('Open Diagnostics'),
               ),
               const Divider(height: 32),
+              const Text(
+                'Playback',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+              ),
+              ListenableBuilder(
+                listenable: library,
+                builder: (context, _) => SwitchListTile.adaptive(
+                  key: const Key('lock-hardware-volume-buttons'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Lock hardware volume buttons'),
+                  subtitle: const Text(
+                    'When player controls are locked, also block the physical volume buttons. Turn off to keep volume buttons available.',
+                  ),
+                  value: library.lockHardwareVolumeButtons,
+                  onChanged: (value) =>
+                      unawaited(library.setLockHardwareVolumeButtons(value)),
+                ),
+              ),
+              const Divider(height: 32),
               CatalogMetadataSettings(library: library),
             ],
           ),

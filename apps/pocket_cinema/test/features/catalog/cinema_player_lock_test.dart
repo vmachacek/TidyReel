@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -22,11 +24,27 @@ class _UnusedProbe implements MediaProbe {
 void main() {
   const controlsChannel = MethodChannel('com.pocketcinema.app/player_controls');
   late List<MethodCall> controlsCalls;
+  late bool savedVolumeLockPreference;
   Iterable<MethodCall> lockCalls() =>
       controlsCalls.where((call) => call.method == 'setLocked');
+  Iterable<bool> lockValues() =>
+      lockCalls().map((call) => (call.arguments as Map)['locked'] as bool);
+  Iterable<bool> volumeLockPreferences() => lockCalls().map(
+    (call) => (call.arguments as Map)['lockHardwareVolumeButtons'] as bool,
+  );
 
   setUp(() {
     controlsCalls = [];
+    savedVolumeLockPreference = true;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(CatalogLibrary.channel, (call) async {
+          if (call.method == 'loadPreferences') {
+            return jsonEncode({
+              'lockHardwareVolumeButtons': savedVolumeLockPreference,
+            });
+          }
+          return null;
+        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(controlsChannel, (call) async {
           controlsCalls.add(call);
@@ -36,10 +54,16 @@ void main() {
 
   tearDown(() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(CatalogLibrary.channel, null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(controlsChannel, null);
   });
 
-  Future<void> open(WidgetTester tester) async {
+  Future<CatalogLibrary> open(
+    WidgetTester tester, {
+    bool lockHardwareVolumeButtons = true,
+  }) async {
+    savedVolumeLockPreference = lockHardwareVolumeButtons;
     final storage = FakeStorageGateway();
     final controller = RiskSpikeController(
       storage: storage,
@@ -78,6 +102,7 @@ void main() {
     await tester.tap(find.text('Open player'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 350));
+    return library;
   }
 
   testWidgets(
@@ -88,7 +113,7 @@ void main() {
       await tester.pump(const Duration(seconds: 5));
       expect(find.byKey(const Key('lock-player')), findsNothing);
       expect(find.byTooltip('Back to library'), findsNothing);
-      expect(lockCalls().map((call) => call.arguments), [false]);
+      expect(lockValues(), [false]);
       await tester.tapAt(const Offset(150, 150));
       await tester.pump();
       expect(find.byKey(const Key('lock-player')), findsOneWidget);
@@ -104,7 +129,7 @@ void main() {
       await tester.tap(lock);
       await tester.pump();
       expect(find.byKey(const Key('unlock-player')), findsNothing);
-      expect(lockCalls().map((call) => call.arguments), [false]);
+      expect(lockValues(), [false]);
       final hold = await tester.startGesture(tester.getCenter(lock));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 2100));
@@ -117,7 +142,8 @@ void main() {
         'setLocked',
         'setLocked',
       ]);
-      expect(lockCalls().map((call) => call.arguments), [false, true]);
+      expect(lockValues(), [false, true]);
+      expect(volumeLockPreferences(), [true, true]);
       await tester.tapAt(const Offset(150, 150));
       await tester.binding.handlePopRoute();
       await tester.pump();
@@ -126,7 +152,7 @@ void main() {
       await tester.tap(unlock);
       await tester.pump();
       expect(unlock, findsOneWidget);
-      expect(lockCalls().map((call) => call.arguments), [false, true]);
+      expect(lockValues(), [false, true]);
       final release = await tester.startGesture(tester.getCenter(unlock));
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 2100));
@@ -134,7 +160,7 @@ void main() {
       await tester.pump();
       expect(find.byKey(const Key('lock-player')), findsOneWidget);
       expect(find.byTooltip('Back to library'), findsOneWidget);
-      expect(lockCalls().map((call) => call.arguments), [false, true, false]);
+      expect(lockValues(), [false, true, false]);
       await tester.pumpWidget(const SizedBox());
     },
   );
@@ -150,20 +176,79 @@ void main() {
     await tester.pump(const Duration(milliseconds: 2100));
     await hold.up();
     await tester.pump();
-    expect(lockCalls().map((call) => call.arguments), [false, true]);
+    expect(lockValues(), [false, true]);
 
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-    expect(lockCalls().map((call) => call.arguments), [false, true, false]);
+    expect(lockValues(), [false, true, false]);
 
     await open(tester);
     expect(find.byKey(const Key('lock-player')), findsOneWidget);
-    expect(lockCalls().map((call) => call.arguments), [
-      false,
-      true,
-      false,
-      false,
-    ]);
+    expect(lockValues(), [false, true, false, false]);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Volume opt-out keeps touch controls and Back locked', (
+    tester,
+  ) async {
+    await open(tester, lockHardwareVolumeButtons: false);
+    final hold = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('lock-player'))),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 2100));
+    await hold.up();
+    await tester.pump();
+
+    expect(lockValues(), [false, true]);
+    expect(volumeLockPreferences(), [false, false]);
+    expect(find.byKey(const Key('unlock-player')), findsOneWidget);
+    expect(find.byType(IconButton), findsNothing);
+    await tester.tapAt(const Offset(150, 150));
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(find.byType(CinemaPlayer), findsOneWidget);
+
+    final release = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('unlock-player'))),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 2100));
+    await release.up();
+    await tester.pump();
+    expect(find.byTooltip('Back to library'), findsOneWidget);
+    expect(lockValues(), [false, true, false]);
+    expect(volumeLockPreferences(), [false, false, false]);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    expect(lockValues().last, isFalse);
+    expect(volumeLockPreferences().last, isFalse);
+  });
+
+  testWidgets('Preference changes update an already locked player', (
+    tester,
+  ) async {
+    final library = await open(tester);
+    final hold = await tester.startGesture(
+      tester.getCenter(find.byKey(const Key('lock-player'))),
+    );
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pump(const Duration(milliseconds: 2100));
+    await hold.up();
+    await tester.pump();
+
+    await tester.runAsync(() => library.setLockHardwareVolumeButtons(false));
+    await tester.pump();
+    expect(lockValues(), [false, true, true]);
+    expect(volumeLockPreferences(), [true, true, false]);
+    expect(find.byKey(const Key('unlock-player')), findsOneWidget);
+
+    await tester.runAsync(() => library.setLockHardwareVolumeButtons(true));
+    await tester.pump();
+    expect(lockValues(), [false, true, true, true]);
+    expect(volumeLockPreferences(), [true, true, false, true]);
+    expect(find.byKey(const Key('unlock-player')), findsOneWidget);
     await tester.pumpWidget(const SizedBox());
   });
 

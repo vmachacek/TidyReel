@@ -38,11 +38,17 @@ class PlayerControlsPlatform(activity: Activity, messenger: BinaryMessenger) {
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "setLocked" -> {
-                    val locked = call.arguments as? Boolean
-                    if (locked == null) {
-                        result.error("INVALID_ARGUMENT", "setLocked expects a boolean.", null)
+                    val arguments = call.arguments as? Map<*, *>
+                    val locked = arguments?.get("locked") as? Boolean
+                    val lockHardwareVolumeButtons = arguments?.get("lockHardwareVolumeButtons") as? Boolean
+                    if (locked == null || lockHardwareVolumeButtons == null) {
+                        result.error(
+                            "INVALID_ARGUMENT",
+                            "setLocked expects a map with boolean locked and lockHardwareVolumeButtons values.",
+                            null,
+                        )
                     } else {
-                        controlsLock.setLocked(locked)
+                        controlsLock.setLocked(locked, lockHardwareVolumeButtons)
                         result.success(null)
                     }
                 }

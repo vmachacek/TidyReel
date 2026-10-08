@@ -20,7 +20,40 @@ class PlayerControlsLockTest {
         volumeKeys.forEach { assertTrue(controls.shouldConsume(it)) }
 
         controls.setLocked(false)
+        assertFalse(controls.isLocked)
         volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+    }
+
+    @Test fun optingOutAllowsVolumeKeysWithoutUnlockingControls() {
+        val controls = PlayerControlsLock()
+        controls.setLocked(true, lockHardwareVolumeButtons = false)
+
+        assertTrue(controls.isLocked)
+        volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+    }
+
+    @Test fun volumeKeyPolicyCanChangeWhileControlsRemainLocked() {
+        val controls = PlayerControlsLock()
+        controls.setLocked(true, lockHardwareVolumeButtons = false)
+
+        controls.setLocked(true, lockHardwareVolumeButtons = true)
+        assertTrue(controls.isLocked)
+        volumeKeys.forEach { assertTrue(controls.shouldConsume(it)) }
+
+        controls.setLocked(true, lockHardwareVolumeButtons = false)
+        assertTrue(controls.isLocked)
+        volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+    }
+
+    @Test fun unlockedControlsAllowVolumeKeysRegardlessOfPolicy() {
+        val controls = PlayerControlsLock()
+        controls.setLocked(true, lockHardwareVolumeButtons = false)
+
+        listOf(false, true).forEach { lockHardwareVolumeButtons ->
+            controls.setLocked(false, lockHardwareVolumeButtons)
+            assertFalse(controls.isLocked)
+            volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+        }
     }
 
     @Test fun unrelatedKeysPassThroughWhileLocked() {
@@ -45,6 +78,19 @@ class PlayerControlsLockTest {
         }
 
         controls.close()
+        assertFalse(controls.isLocked)
         volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+    }
+
+    @Test fun cleanupRestoresDefaultVolumePolicyForNextLock() {
+        val controls = PlayerControlsLock()
+        controls.setLocked(true, lockHardwareVolumeButtons = false)
+
+        controls.close()
+        assertFalse(controls.isLocked)
+        volumeKeys.forEach { assertFalse(controls.shouldConsume(it)) }
+
+        controls.setLocked(true)
+        volumeKeys.forEach { assertTrue(controls.shouldConsume(it)) }
     }
 }

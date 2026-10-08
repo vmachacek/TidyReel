@@ -41,6 +41,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   );
   bool visible = true, fullscreen = false, opening = true;
   bool locked = false;
+  late bool _lockHardwareVolumeButtons;
   bool autoplayCancelled = false;
   double brightness = 0.5;
   bool brightnessAvailable = false;
@@ -61,7 +62,9 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   @override
   void initState() {
     super.initState();
-    unawaited(syncVolumeLock(false));
+    _lockHardwareVolumeButtons = widget.library.lockHardwareVolumeButtons;
+    widget.library.addListener(_lockPreferenceChanged);
+    unawaited(syncControlsLock(false));
     unawaited(beginWatching());
     scheduleHide();
     unawaited(start(video));
@@ -74,6 +77,23 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
       }
       if (ticks % 20 == 0) unawaited(widget.library.persist());
     });
+  }
+
+  void _lockPreferenceChanged() {
+    final value = widget.library.lockHardwareVolumeButtons;
+    if (_lockHardwareVolumeButtons == value) return;
+    _lockHardwareVolumeButtons = value;
+    unawaited(syncControlsLock(locked));
+  }
+
+  @override
+  void didUpdateWidget(CinemaPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.library != widget.library) {
+      oldWidget.library.removeListener(_lockPreferenceChanged);
+      widget.library.addListener(_lockPreferenceChanged);
+      _lockPreferenceChanged();
+    }
   }
 
   Future<void> start(CatalogVideo next) async {
@@ -129,7 +149,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   void dispose() {
     timer?.cancel();
     controlsTimer?.cancel();
-    unawaited(syncVolumeLock(false));
+    widget.library.removeListener(_lockPreferenceChanged);
+    unawaited(syncControlsLock(false));
     unawaited(endWatching());
     if (!opening) widget.library.record(video);
     unawaited(widget.library.persist());
@@ -169,7 +190,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
       locked = value;
       visible = !value;
     });
-    unawaited(syncVolumeLock(value));
+    unawaited(syncControlsLock(value));
     unawaited(HapticFeedback.mediumImpact());
     if (!value) scheduleHide();
   }
@@ -223,13 +244,16 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     }
   }
 
-  Future<void> syncVolumeLock(bool value) async {
+  Future<void> syncControlsLock(bool value) async {
     try {
-      await _controlsChannel.invokeMethod<void>('setLocked', value);
+      await _controlsChannel.invokeMethod<void>('setLocked', {
+        'locked': value,
+        'lockHardwareVolumeButtons': _lockHardwareVolumeButtons,
+      });
     } on MissingPluginException {
       // Touch controls remain locked on platforms without the Android bridge.
     } on PlatformException catch (error) {
-      debugPrint('Could not update player volume lock: ${error.message}');
+      debugPrint('Could not update player controls lock: ${error.message}');
     }
   }
 

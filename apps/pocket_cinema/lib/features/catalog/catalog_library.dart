@@ -193,6 +193,8 @@ class CatalogLibrary extends ChangeNotifier {
   Completer<void>? _discoveryIdle;
   String _catalogScope = '';
   bool metadataConfigured = false;
+  bool _lockHardwareVolumeButtons = true;
+  bool get lockHardwareVolumeButtons => _lockHardwareVolumeButtons;
   String? settingsError;
   String? discoveryError;
   bool get isDiscovering =>
@@ -370,6 +372,14 @@ class CatalogLibrary extends ChangeNotifier {
 
   Future<void> retryMatching() => matcher.retry(_localTitles, _catalogScope);
 
+  Future<void> setLockHardwareVolumeButtons(bool value) async {
+    await load();
+    if (_disposed || _lockHardwareVolumeButtons == value) return;
+    _lockHardwareVolumeButtons = value;
+    notifyListeners();
+    await persist();
+  }
+
   bool isSaved(CatalogTitle title) =>
       saved.contains(title.id) || title.localIds.any(saved.contains);
   static const channel = MethodChannel('com.pocketcinema.app/catalog');
@@ -398,6 +408,8 @@ class CatalogLibrary extends ChangeNotifier {
       final raw = await channel.invokeMethod<String>('loadPreferences');
       if (_disposed) return;
       final data = jsonDecode(raw ?? '{}') as Map<String, dynamic>;
+      final volumeLock = data['lockHardwareVolumeButtons'];
+      if (volumeLock is bool) _lockHardwareVolumeButtons = volumeLock;
       saved.addAll((data['saved'] as List<dynamic>? ?? []).cast<String>());
       positions.addAll(
         (data['positions'] as Map<String, dynamic>? ?? {}).map(
@@ -447,6 +459,7 @@ class CatalogLibrary extends ChangeNotifier {
   }
 
   String _preferencesJson() => jsonEncode({
+    'lockHardwareVolumeButtons': _lockHardwareVolumeButtons,
     'saved': saved.toList(),
     'positions': positions,
     'durations': durations,

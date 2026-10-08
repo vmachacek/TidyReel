@@ -23,9 +23,33 @@ void main() {
     expect(snapshot.isOpen, isFalse);
     expect(snapshot.isPlaying, isFalse);
     expect(snapshot.isBuffering, isFalse);
+    expect(snapshot.isCompleted, isFalse);
     expect(snapshot.position, Duration.zero);
     expect(snapshot.duration, Duration.zero);
     expect(snapshot.failure, isNull);
+  });
+
+  test('completion is preserved until playback explicitly resets it', () {
+    const snapshot = PlaybackSnapshot(
+      isOpen: true,
+      isCompleted: true,
+      position: Duration(minutes: 2),
+      duration: Duration(minutes: 2),
+    );
+
+    final buffered = snapshot.copyWith(isBuffering: true);
+    expect(buffered.isCompleted, isTrue);
+    final restarted = buffered.copyWith(
+      isCompleted: false,
+      isPlaying: true,
+      isBuffering: false,
+      position: Duration.zero,
+    );
+    expect(restarted.isCompleted, isFalse);
+    expect(restarted.isPlaying, isTrue);
+    expect(restarted.position, Duration.zero);
+    expect(restarted.duration, snapshot.duration);
+    expect(const PlaybackSnapshot(isOpen: true).isCompleted, isFalse);
   });
 
   test('copyWith changes requested playback state and preserves the rest', () {

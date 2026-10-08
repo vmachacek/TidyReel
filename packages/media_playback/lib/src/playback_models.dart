@@ -18,6 +18,7 @@ final class PlaybackSnapshot {
     required this.isOpen,
     this.isPlaying = false,
     this.isBuffering = false,
+    this.isCompleted = false,
     this.position = Duration.zero,
     this.duration = Duration.zero,
     this.failure,
@@ -27,6 +28,7 @@ final class PlaybackSnapshot {
     : isOpen = false,
       isPlaying = false,
       isBuffering = false,
+      isCompleted = false,
       position = Duration.zero,
       duration = Duration.zero,
       failure = null;
@@ -34,6 +36,7 @@ final class PlaybackSnapshot {
   final bool isOpen;
   final bool isPlaying;
   final bool isBuffering;
+  final bool isCompleted;
   final Duration position;
   final Duration duration;
   final AppFailure? failure;
@@ -42,6 +45,7 @@ final class PlaybackSnapshot {
     bool? isOpen,
     bool? isPlaying,
     bool? isBuffering,
+    bool? isCompleted,
     Duration? position,
     Duration? duration,
     AppFailure? failure,
@@ -50,6 +54,7 @@ final class PlaybackSnapshot {
     isOpen: isOpen ?? this.isOpen,
     isPlaying: isPlaying ?? this.isPlaying,
     isBuffering: isBuffering ?? this.isBuffering,
+    isCompleted: isCompleted ?? this.isCompleted,
     position: position ?? this.position,
     duration: duration ?? this.duration,
     failure: clearFailure ? null : failure ?? this.failure,

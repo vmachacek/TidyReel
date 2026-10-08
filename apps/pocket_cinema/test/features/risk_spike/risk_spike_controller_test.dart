@@ -205,6 +205,46 @@ void main() {
   );
 
   test(
+    'refresh publishes completion changes even at an unchanged position',
+    () {
+      const pausedAtEnd = PlaybackSnapshot(
+        isOpen: true,
+        position: Duration(minutes: 30),
+        duration: Duration(minutes: 30),
+      );
+      final playback = FakePlaybackSession(initialSnapshot: pausedAtEnd);
+      final controller = RiskSpikeController(
+        storage: FakeStorageGateway(),
+        probe: FakeMediaProbe(),
+        playback: playback,
+        initialState: RiskSpikeState(
+          phase: RiskSpikePhase.playing,
+          root: root,
+          selectedFile: videoEntry,
+          playbackSnapshot: pausedAtEnd,
+        ),
+      );
+      addTearDown(controller.dispose);
+      var updates = 0;
+      controller.addListener(() => updates++);
+
+      controller.refreshPlaybackSnapshot();
+      expect(controller.state.playbackSnapshot.isCompleted, isFalse);
+      expect(updates, 0);
+      playback._snapshot = pausedAtEnd.copyWith(isCompleted: true);
+      controller.refreshPlaybackSnapshot();
+      expect(controller.state.playbackSnapshot.isCompleted, isTrue);
+      expect(updates, 1);
+      controller.refreshPlaybackSnapshot();
+      expect(updates, 1);
+      playback._snapshot = pausedAtEnd;
+      controller.refreshPlaybackSnapshot();
+      expect(controller.state.playbackSnapshot.isCompleted, isFalse);
+      expect(updates, 2);
+    },
+  );
+
+  test(
     'lifecycle interruption while idle leaves existing state intact',
     () async {
       final initial = RiskSpikeState(

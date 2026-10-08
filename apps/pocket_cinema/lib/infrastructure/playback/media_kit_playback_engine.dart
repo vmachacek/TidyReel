@@ -155,6 +155,11 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
         ),
       )
       ..add(
+        player.stream.completed.listen(
+          (completed) => _updateSnapshot(isCompleted: completed),
+        ),
+      )
+      ..add(
         player.stream.position.listen(
           (position) => _setSnapshot(
             _current.copyWith(
@@ -216,12 +221,14 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
   void _updateSnapshot({
     bool? isPlaying,
     bool? isBuffering,
+    bool? isCompleted,
     Duration? position,
     Duration? duration,
   }) => _setSnapshot(
     _current.copyWith(
       isPlaying: isPlaying,
       isBuffering: isBuffering,
+      isCompleted: isCompleted,
       position: position,
       duration: duration,
     ),

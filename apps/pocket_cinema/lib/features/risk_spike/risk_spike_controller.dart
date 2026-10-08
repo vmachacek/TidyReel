@@ -297,6 +297,7 @@ final class RiskSpikeController extends ChangeNotifier {
             current.duration != _state.playbackSnapshot.duration ||
             current.isPlaying != _state.playbackSnapshot.isPlaying ||
             current.isBuffering != _state.playbackSnapshot.isBuffering ||
+            current.isCompleted != _state.playbackSnapshot.isCompleted ||
             current.failure != _state.playbackSnapshot.failure)) {
       _emit(
         _state.copyWith(

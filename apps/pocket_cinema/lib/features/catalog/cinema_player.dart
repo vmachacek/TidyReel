@@ -11,6 +11,7 @@ import '../risk_spike/risk_spike_controller.dart';
 import '../risk_spike/widgets/failure_panel.dart';
 import 'catalog_library.dart';
 import 'catalog_screen.dart';
+import 'next_episode_prompt.dart';
 import 'playback_stats_overlay.dart';
 import 'hold_to_activate_button.dart';
 
@@ -40,6 +41,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   );
   bool visible = true, fullscreen = false, opening = true;
   bool locked = false;
+  bool autoplayCancelled = false;
   double brightness = 0.5;
   bool brightnessAvailable = false;
   int activePointers = 0;
@@ -66,6 +68,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     timer = Timer.periodic(const Duration(milliseconds: 500), (_) {
       if (!mounted) return;
       widget.controller.refreshPlaybackSnapshot();
+      checkAutoplay();
       if (++ticks % 4 == 0 && !opening) {
         widget.library.record(video, notify: false);
       }
@@ -76,6 +79,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   Future<void> start(CatalogVideo next) async {
     video = next;
     opening = true;
+    autoplayCancelled = false;
     final resume = widget.library.watched(next)
         ? 0
         : widget.library.positions[next.id] ?? 0;
@@ -85,6 +89,40 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     );
     if (!mounted) return;
     if (mounted) setState(() => opening = false);
+  }
+
+  void playNext() {
+    final next = nextVideo;
+    if (opening || next == null) return;
+    widget.library.record(video);
+    unawaited(widget.library.persist());
+    unawaited(start(next));
+  }
+
+  void checkAutoplay() {
+    final playback = widget.controller.playback.snapshot;
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (opening ||
+        autoplayCancelled ||
+        autoplayVideo == null ||
+        !playback.isOpen ||
+        !playback.isCompleted ||
+        playback.isBuffering ||
+        playback.failure != null ||
+        widget.controller.state.failure != null ||
+        (lifecycle != null && lifecycle != AppLifecycleState.resumed) ||
+        ModalRoute.isCurrentOf(context) == false) {
+      return;
+    }
+    playNext();
+  }
+
+  void cancelAutoplay() {
+    setState(() {
+      autoplayCancelled = true;
+      visible = true;
+    });
+    scheduleHide();
   }
 
   @override
@@ -202,6 +240,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
         : null;
   }
 
+  CatalogVideo? get autoplayVideo => video.series == null ? null : nextVideo;
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: widget.controller,
@@ -210,6 +250,25 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
       final playback = state.playbackSnapshot;
       final duration = playback.duration.inSeconds,
           position = playback.position.inSeconds;
+      final upcoming = autoplayVideo;
+      final remaining = playback.duration - playback.position;
+      final promptTop = visible
+          ? 24.0 +
+                (MediaQuery.textScalerOf(context).scale(14) * 3).clamp(
+                  52.0,
+                  double.infinity,
+                )
+          : 16.0;
+      final showAutoplay =
+          !locked &&
+          !opening &&
+          !autoplayCancelled &&
+          upcoming != null &&
+          playback.isOpen &&
+          playback.duration > Duration.zero &&
+          remaining <= const Duration(seconds: 15) &&
+          state.failure == null &&
+          playback.failure == null;
       return PopScope(
         canPop: !locked,
         child: Scaffold(
@@ -305,236 +364,236 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                         ],
                       ),
                     ),
-                    Center(
-                      child: opening || playback.isBuffering
-                          ? const CircularProgressIndicator()
-                          : Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton.filledTonal(
-                                  onPressed: playback.isOpen
-                                      ? () => widget.controller.seekBy(
-                                          const Duration(seconds: -10),
-                                        )
-                                      : null,
-                                  iconSize: 32,
-                                  icon: const Icon(Icons.replay_10),
-                                ),
-                                const SizedBox(width: 24),
-                                SizedBox(
-                                  width: 88,
-                                  height: 88,
-                                  child: FilledButton(
-                                    style: FilledButton.styleFrom(
-                                      shape: const CircleBorder(),
-                                      padding: EdgeInsets.zero,
+                    if (!showAutoplay)
+                      Center(
+                        child: opening || playback.isBuffering
+                            ? const CircularProgressIndicator()
+                            : Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton.filledTonal(
+                                    onPressed: playback.isOpen
+                                        ? () => widget.controller.seekBy(
+                                            const Duration(seconds: -10),
+                                          )
+                                        : null,
+                                    iconSize: 32,
+                                    icon: const Icon(Icons.replay_10),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  SizedBox(
+                                    width: 88,
+                                    height: 88,
+                                    child: FilledButton(
+                                      style: FilledButton.styleFrom(
+                                        shape: const CircleBorder(),
+                                        padding: EdgeInsets.zero,
+                                      ),
+                                      onPressed: playback.isOpen
+                                          ? widget.controller.togglePlayPause
+                                          : null,
+                                      child: Icon(
+                                        playback.isPlaying
+                                            ? Icons.pause
+                                            : Icons.play_arrow,
+                                        size: 44,
+                                      ),
                                     ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  IconButton.filledTonal(
+                                    onPressed: playback.isOpen
+                                        ? () => widget.controller.seekBy(
+                                            const Duration(seconds: 10),
+                                          )
+                                        : null,
+                                    iconSize: 32,
+                                    icon: const Icon(Icons.forward_10),
+                                  ),
+                                ],
+                              ),
+                      ),
+                    if (!showAutoplay)
+                      Positioned(
+                        bottom: 16,
+                        left: 16,
+                        right: 16,
+                        child: Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xEE0B0E16),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.white12),
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Row(
+                                children: [
+                                  Text(
+                                    '${clock(position)} / ${clock(duration)}',
+                                    style: const TextStyle(color: peach),
+                                  ),
+                                  const Spacer(),
+                                  Text(
+                                    '${clock((duration - position).clamp(0, duration))} remaining',
+                                    style: const TextStyle(
+                                      color: peach,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              Slider(
+                                value: duration > 0
+                                    ? (position / duration).clamp(0, 1)
+                                    : 0,
+                                onChanged: playback.isOpen && duration > 0
+                                    ? (v) => widget.controller.seekBy(
+                                        Duration(
+                                          seconds:
+                                              (v * duration).round() - position,
+                                        ),
+                                      )
+                                    : null,
+                              ),
+                              Wrap(
+                                spacing: 8,
+                                runSpacing: 4,
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  IconButton(
                                     onPressed: playback.isOpen
                                         ? widget.controller.togglePlayPause
                                         : null,
-                                    child: Icon(
+                                    tooltip: 'Play or pause',
+                                    icon: Icon(
                                       playback.isPlaying
                                           ? Icons.pause
                                           : Icons.play_arrow,
-                                      size: 44,
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 24),
-                                IconButton.filledTonal(
-                                  onPressed: playback.isOpen
-                                      ? () => widget.controller.seekBy(
-                                          const Duration(seconds: 10),
-                                        )
-                                      : null,
-                                  iconSize: 32,
-                                  icon: const Icon(Icons.forward_10),
-                                ),
-                              ],
-                            ),
-                    ),
-                    Positioned(
-                      bottom: 16,
-                      left: 16,
-                      right: 16,
-                      child: Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xEE0B0E16),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white12),
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              children: [
-                                Text(
-                                  '${clock(position)} / ${clock(duration)}',
-                                  style: const TextStyle(color: peach),
-                                ),
-                                const Spacer(),
-                                Text(
-                                  '${clock((duration - position).clamp(0, duration))} remaining',
-                                  style: const TextStyle(
-                                    color: peach,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Slider(
-                              value: duration > 0
-                                  ? (position / duration).clamp(0, 1)
-                                  : 0,
-                              onChanged: playback.isOpen && duration > 0
-                                  ? (v) => widget.controller.seekBy(
-                                      Duration(
-                                        seconds:
-                                            (v * duration).round() - position,
+                                  if (player != null)
+                                    SizedBox(
+                                      width: 140,
+                                      child: Row(
+                                        children: [
+                                          IconButton(
+                                            onPressed: () => setVolume(
+                                              player!.state.volume > 0
+                                                  ? 0
+                                                  : 100,
+                                            ),
+                                            tooltip: 'Mute or unmute',
+                                            icon: Icon(
+                                              player!.state.volume > 0
+                                                  ? Icons.volume_up
+                                                  : Icons.volume_off,
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Slider(
+                                              value: player!.state.volume.clamp(
+                                                0,
+                                                100,
+                                              ),
+                                              max: 100,
+                                              onChanged: setVolume,
+                                            ),
+                                          ),
+                                        ],
                                       ),
-                                    )
-                                  : null,
-                            ),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 4,
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              children: [
-                                IconButton(
-                                  onPressed: playback.isOpen
-                                      ? widget.controller.togglePlayPause
-                                      : null,
-                                  tooltip: 'Play or pause',
-                                  icon: Icon(
-                                    playback.isPlaying
-                                        ? Icons.pause
-                                        : Icons.play_arrow,
-                                  ),
-                                ),
-                                if (player != null)
+                                    ),
                                   SizedBox(
-                                    width: 140,
-                                    child: Row(
-                                      children: [
-                                        IconButton(
-                                          onPressed: () => setVolume(
-                                            player!.state.volume > 0 ? 0 : 100,
+                                    width: 220,
+                                    child: Tooltip(
+                                      message: 'Brightness',
+                                      child: Row(
+                                        children: [
+                                          const Icon(
+                                            Icons.brightness_6_outlined,
+                                            size: 22,
                                           ),
-                                          tooltip: 'Mute or unmute',
-                                          icon: Icon(
-                                            player!.state.volume > 0
-                                                ? Icons.volume_up
-                                                : Icons.volume_off,
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Slider(
-                                            value: player!.state.volume.clamp(
-                                              0,
-                                              100,
+                                          Expanded(
+                                            child: Slider(
+                                              key: const Key(
+                                                'player-brightness-slider',
+                                              ),
+                                              value: brightness,
+                                              min: 0.01,
+                                              label:
+                                                  '${(brightness * 100).round()}%',
+                                              semanticFormatterCallback: (
+                                                value,
+                                              ) => 'Brightness ${(value * 100).round()} percent',
+                                              onChanged: brightnessAvailable
+                                                  ? setBrightness
+                                                  : null,
+                                              onChangeStart: (_) =>
+                                                  controlsTimer?.cancel(),
+                                              onChangeEnd: (_) =>
+                                                  scheduleHide(),
                                             ),
-                                            max: 100,
-                                            onChanged: setVolume,
                                           ),
-                                        ),
-                                      ],
+                                          SizedBox(
+                                            width: 36,
+                                            child: Text(
+                                              brightnessAvailable
+                                                  ? '${(brightness * 100).round()}%'
+                                                  : '—',
+                                              style: const TextStyle(
+                                                color: peach,
+                                                fontSize: 11,
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
                                     ),
                                   ),
-                                SizedBox(
-                                  width: 220,
-                                  child: Tooltip(
-                                    message: 'Brightness',
-                                    child: Row(
-                                      children: [
-                                        const Icon(
-                                          Icons.brightness_6_outlined,
-                                          size: 22,
-                                        ),
-                                        Expanded(
-                                          child: Slider(
-                                            key: const Key(
-                                              'player-brightness-slider',
-                                            ),
-                                            value: brightness,
-                                            min: 0.01,
-                                            label:
-                                                '${(brightness * 100).round()}%',
-                                            semanticFormatterCallback: (value) =>
-                                                'Brightness ${(value * 100).round()} percent',
-                                            onChanged: brightnessAvailable
-                                                ? setBrightness
-                                                : null,
-                                            onChangeStart: (_) =>
-                                                controlsTimer?.cancel(),
-                                            onChangeEnd: (_) => scheduleHide(),
-                                          ),
-                                        ),
-                                        SizedBox(
-                                          width: 36,
-                                          child: Text(
-                                            brightnessAvailable
-                                                ? '${(brightness * 100).round()}%'
-                                                : '—',
-                                            style: const TextStyle(
-                                              color: peach,
-                                              fontSize: 11,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: playback.isOpen ? tracks : null,
-                                  child: const Text('Audio & Subs'),
-                                ),
-                                if (player != null)
                                   TextButton(
-                                    onPressed: speed,
-                                    child: Text('${player!.state.rate}×'),
+                                    onPressed: playback.isOpen ? tracks : null,
+                                    child: const Text('Audio & Subs'),
                                   ),
-                                if (nextVideo != null)
+                                  if (player != null)
+                                    TextButton(
+                                      onPressed: speed,
+                                      child: Text('${player!.state.rate}×'),
+                                    ),
+                                  if (nextVideo != null)
+                                    IconButton(
+                                      onPressed: opening ? null : playNext,
+                                      tooltip: 'Next Episode',
+                                      icon: const Icon(Icons.skip_next),
+                                    ),
                                   IconButton(
-                                    onPressed: opening
-                                        ? null
-                                        : () {
-                                            widget.library.record(video);
-                                            unawaited(widget.library.persist());
-                                            unawaited(start(nextVideo!));
-                                          },
-                                    tooltip: 'Next Episode',
-                                    icon: const Icon(Icons.skip_next),
+                                    onPressed: fullScreen,
+                                    tooltip: 'Fullscreen',
+                                    icon: Icon(
+                                      fullscreen
+                                          ? Icons.fullscreen_exit
+                                          : Icons.fullscreen,
+                                    ),
                                   ),
-                                IconButton(
-                                  onPressed: fullScreen,
-                                  tooltip: 'Fullscreen',
-                                  icon: Icon(
-                                    fullscreen
-                                        ? Icons.fullscreen_exit
-                                        : Icons.fullscreen,
+                                  IconButton(
+                                    onPressed: toggleControls,
+                                    tooltip: 'Hide controls',
+                                    icon: const Icon(
+                                      Icons.visibility_off_outlined,
+                                    ),
                                   ),
-                                ),
-                                IconButton(
-                                  onPressed: toggleControls,
-                                  tooltip: 'Hide controls',
-                                  icon: const Icon(
-                                    Icons.visibility_off_outlined,
+                                  HoldToActivateButton(
+                                    key: const Key('lock-player'),
+                                    label: 'Hold to lock player',
+                                    icon: Icons.lock_outline,
+                                    onActivate: () => setLocked(true),
                                   ),
-                                ),
-                                HoldToActivateButton(
-                                  key: const Key('lock-player'),
-                                  label: 'Hold to lock player',
-                                  icon: Icons.lock_outline,
-                                  onActivate: () => setLocked(true),
-                                ),
-                              ],
-                            ),
-                          ],
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                    ),
                     if (state.failure != null)
                       Positioned(
                         top: 80,
@@ -545,7 +604,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                           controller: widget.controller,
                         ),
                       ),
-                    if (state.subtitleWarning != null)
+                    if (state.subtitleWarning != null && !showAutoplay)
                       Positioned(
                         top: 80,
                         left: 20,
@@ -555,13 +614,47 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
                         ),
                       ),
                   ],
-                  if (!locked)
+                  if (!locked && !showAutoplay)
                     Positioned(
                       top: visible ? 76 : 12,
                       right: 16,
                       child: PlaybackStatsOverlay(
                         key: ValueKey(video.id),
                         player: () => player,
+                      ),
+                    ),
+                  if (showAutoplay)
+                    Positioned(
+                      top: promptTop,
+                      bottom: 16,
+                      left: 16,
+                      right: 16,
+                      child: Align(
+                        alignment: Alignment.bottomRight,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth:
+                                MediaQuery.orientationOf(context) ==
+                                        Orientation.landscape &&
+                                    MediaQuery.sizeOf(context).height < 450
+                                ? 600
+                                : 360,
+                          ),
+                          child: NextEpisodePrompt(
+                            key: const Key('next-episode-prompt'),
+                            video: upcoming,
+                            library: widget.library,
+                            secondsRemaining:
+                                (remaining.inMicroseconds /
+                                        Duration.microsecondsPerSecond)
+                                    .ceil()
+                                    .clamp(0, 15),
+                            paused: !playback.isPlaying,
+                            onPlay: playNext,
+                            onCancel: cancelAutoplay,
+                            onTogglePlayback: widget.controller.togglePlayPause,
+                          ),
+                        ),
                       ),
                     ),
                   if (locked) ...[

@@ -11,6 +11,7 @@ import '../risk_spike/risk_spike_controller.dart';
 import '../risk_spike/risk_spike_screen.dart';
 import '../risk_spike/risk_spike_state.dart';
 import '../risk_spike/widgets/failure_panel.dart';
+import 'background_refresh_scheduler.dart';
 import 'catalog_artwork_picker.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
@@ -35,55 +36,119 @@ class CatalogScreen extends StatefulWidget {
   State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
-class _CatalogScreenState extends State<CatalogScreen> {
+class _CatalogScreenState extends State<CatalogScreen>
+    with WidgetsBindingObserver {
   late final CatalogLibrary library = CatalogLibrary(widget.controller);
+  late final backgroundRefresh = BackgroundRefreshScheduler(
+    needsRefresh: () => widget.controller.needsBackgroundRefresh,
+    refresh: widget.controller.refreshInBackground,
+    defer: widget.controller.deferBackgroundRefresh,
+  );
   String query = '', filter = 'All', sort = 'Recently Modified';
   bool listView = false;
   int destination = 0;
   String? featuredTitleId;
   String? presentedScope;
   bool hasPresentedCatalog = false;
-  bool startupRefreshScheduled = false;
+  String? refreshScope;
+  bool resumed = true, routeCurrent = true, scrolling = false;
+  final activePointers = <int>{};
   List<CatalogTitle> titlesFor(List<StorageEntrySnapshot> entries) =>
       library.titlesFor(entries);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    resumed =
+        WidgetsBinding.instance.lifecycleState == null ||
+        WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
     library.addListener(autoScan);
     widget.controller.addListener(autoScan);
-    WidgetsBinding.instance.addPostFrameCallback((_) => autoScan());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) autoScan();
+    });
   }
 
   void autoScan() {
+    updateRefreshAvailability();
     final state = widget.controller.state;
     if (state.root != null &&
         state.phase == RiskSpikePhase.ready &&
         !state.scanCompleted) {
       unawaited(widget.controller.scan(state.root!));
-      return;
     }
-    if (!startupRefreshScheduled &&
-        widget.controller.needsStartupRefresh &&
-        !library.isDiscovering &&
-        !library.isRestoringPreferences) {
-      startupRefreshScheduled = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        startupRefreshScheduled = false;
-        // The controller rejects requests superseded by a manual scan or a
-        // folder change. The restored catalog renders before this refresh.
-        if (!library.isDiscovering && !library.isRestoringPreferences) {
-          unawaited(widget.controller.refreshOnStartup());
-        }
-      });
+  }
+
+  void updateRefreshAvailability() {
+    final state = widget.controller.state;
+    final scope = state.root?.locator.opaqueValue;
+    if (scope != refreshScope) {
+      refreshScope = scope;
+      backgroundRefresh.reset();
     }
+    backgroundRefresh.setAvailable(
+      resumed &&
+          routeCurrent &&
+          !scrolling &&
+          activePointers.isEmpty &&
+          state.scanCompleted &&
+          !state.canCancel &&
+          !state.canRepairRoot &&
+          state.phase != RiskSpikePhase.checkingGrant &&
+          state.phase != RiskSpikePhase.choosingRoot &&
+          state.phase != RiskSpikePhase.probing &&
+          state.phase != RiskSpikePhase.openingPlayback &&
+          !widget.controller.playback.snapshot.isOpen &&
+          !widget.controller.playbackBlocked &&
+          !library.isDiscovering &&
+          !library.isRestoringPreferences,
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    routeCurrent = ModalRoute.isCurrentOf(context) ?? true;
+    updateRefreshAvailability();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    resumed = state == AppLifecycleState.resumed;
+    if (!resumed) {
+      activePointers.clear();
+      scrolling = false;
+    }
+    autoScan();
+  }
+
+  void pointerDown(PointerDownEvent event) {
+    activePointers.add(event.pointer);
+    backgroundRefresh.activity();
+    autoScan();
+  }
+
+  void pointerEnd(PointerEvent event) {
+    activePointers.remove(event.pointer);
+    backgroundRefresh.activity();
+    autoScan();
+  }
+
+  bool scrollActivity(ScrollNotification notification) {
+    if (notification is ScrollStartNotification) scrolling = true;
+    if (notification is ScrollEndNotification) scrolling = false;
+    backgroundRefresh.activity();
+    autoScan();
+    return false;
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     widget.controller.removeListener(autoScan);
     library.removeListener(autoScan);
+    backgroundRefresh.dispose();
     library.dispose();
     super.dispose();
   }
@@ -109,13 +174,34 @@ class _CatalogScreenState extends State<CatalogScreen> {
       ),
     ),
   );
+  Widget trackActivity(Widget child) => Listener(
+    onPointerDown: pointerDown,
+    onPointerUp: pointerEnd,
+    onPointerCancel: pointerEnd,
+    onPointerMove: (_) => backgroundRefresh.activity(),
+    onPointerSignal: (_) => backgroundRefresh.activity(),
+    child: Focus(
+      canRequestFocus: false,
+      onKeyEvent: (_, _) {
+        backgroundRefresh.activity();
+        return KeyEventResult.ignored;
+      },
+      child: NotificationListener<ScrollNotification>(
+        onNotification: scrollActivity,
+        child: child,
+      ),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => RouteContentBuilder(
+  Widget build(BuildContext context) => trackActivity(catalogContent(context));
+
+  Widget catalogContent(BuildContext context) => RouteContentBuilder(
     animation: Listenable.merge([widget.controller, library]),
     builder: (context) {
       final state = widget.controller.state;
       final scanning =
-          state.canCancel ||
+          (state.canCancel && !widget.controller.isBackgroundRefreshing) ||
           state.phase == RiskSpikePhase.enumerating ||
           state.phase == RiskSpikePhase.choosingRoot ||
           state.phase == RiskSpikePhase.checkingGrant;
@@ -379,7 +465,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
                       SizedBox(
                         width: 280,
                         child: TextField(
-                          onChanged: (v) => setState(() => query = v),
+                          onChanged: (v) {
+                            backgroundRefresh.activity();
+                            setState(() => query = v);
+                          },
                           decoration: const InputDecoration(
                             prefixIcon: Icon(Icons.search),
                             hintText: 'Search your library…',

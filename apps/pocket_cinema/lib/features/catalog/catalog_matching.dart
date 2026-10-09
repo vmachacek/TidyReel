@@ -17,6 +17,27 @@ class CatalogResolvedMatch {
   final List<CatalogEpisodeMetadata> episodes;
   final bool manual;
 
+  bool hasSameMetadata(CatalogResolvedMatch other) {
+    if (manual != other.manual ||
+        candidate.providerId != other.candidate.providerId ||
+        candidate.name != other.candidate.name ||
+        candidate.originalName != other.candidate.originalName ||
+        candidate.year != other.candidate.year ||
+        candidate.overview != other.candidate.overview ||
+        episodes.length != other.episodes.length) {
+      return false;
+    }
+    for (var index = 0; index < episodes.length; index++) {
+      final episode = episodes[index], otherEpisode = other.episodes[index];
+      if (episode.season != otherEpisode.season ||
+          episode.number != otherEpisode.number ||
+          episode.name != otherEpisode.name) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   Map<String, Object?> toJson() => {
     'id': candidate.providerId,
     'name': candidate.name,
@@ -209,13 +230,19 @@ class CatalogMatcher extends ChangeNotifier {
                     match.candidate.providerId) {
               continue;
             }
-            matches[cacheKey] = CatalogResolvedMatch(
+            final resolved = CatalogResolvedMatch(
               match.candidate,
               episodes,
               manual: match.manual || matches[cacheKey]?.manual == true,
             );
-            failures.remove(cacheKey);
-            _notifyPresentationChanged();
+            final previous = matches[cacheKey];
+            final changed =
+                previous == null || !previous.hasSameMetadata(resolved);
+            final clearedFailure = failures.remove(cacheKey) != null;
+            // Complete cached records should not regroup the entire catalog or
+            // rewrite preferences simply because enrichment ran after startup.
+            if (changed) matches[cacheKey] = resolved;
+            if (changed || clearedFailure) _notifyPresentationChanged();
           } on Object {
             if (stale()) continue;
             failures[cacheKey] =

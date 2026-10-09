@@ -19,12 +19,16 @@ final class RiskSpikeController extends ChangeNotifier {
     this.sidecarMatcher = const SidecarMatcher(),
     ScanInventoryStore? inventoryStore,
     ScanInventoryWorker? inventoryWorker,
+    DateTime Function()? clock,
     RiskSpikeState initialState = const RiskSpikeState(),
   }) : _inventoryStore = inventoryStore ?? PlatformScanInventoryStore(),
        _inventoryWorker = inventoryWorker ?? computeScanInventory,
+       _clock = clock ?? DateTime.now,
        _state = initialState;
 
   static const int maximumSubtitleBytes = 2 * 1024 * 1024;
+  static const backgroundRefreshInterval = Duration(hours: 6);
+  static const backgroundRetryInterval = Duration(minutes: 30);
 
   final LibraryStorageGateway storage;
   final MediaProbe probe;
@@ -33,6 +37,7 @@ final class RiskSpikeController extends ChangeNotifier {
   final SidecarMatcher sidecarMatcher;
   final ScanInventoryStore _inventoryStore;
   final ScanInventoryWorker _inventoryWorker;
+  final DateTime Function() _clock;
 
   RiskSpikeState _state;
   RiskSpikeState get state => _state;
@@ -106,25 +111,45 @@ final class RiskSpikeController extends ChangeNotifier {
   var _pendingRefreshDiscoveredCount = 0;
   var _lastScanProgressMillis = 0;
   Future<void>? _initialization;
-  ({LibraryRootLocator root, int generation, int scanSequence})?
-  _startupRefresh;
+  bool _isBackgroundRefreshing = false;
+  DateTime? _lastAutomaticFailureAt;
+  ScanInventory? _pendingAutomaticInventory;
+  Future<void> _inventoryWrite = Future<void>.value();
 
-  bool get needsStartupRefresh {
-    final request = _startupRefresh;
-    return !_disposed &&
-        request != null &&
-        request.generation == _rootGeneration &&
-        request.scanSequence == _scanSequence &&
-        _activeScanId == null &&
-        _state.scanCompleted &&
-        _sameRoot(_state.root?.locator, request.root);
+  bool get isBackgroundRefreshing => _isBackgroundRefreshing;
+
+  bool get needsBackgroundRefresh {
+    if (_disposed ||
+        _activeScanId != null ||
+        _state.root == null ||
+        !_state.scanCompleted ||
+        _state.canRepairRoot ||
+        _state.phase == RiskSpikePhase.checkingGrant ||
+        _state.phase == RiskSpikePhase.choosingRoot) {
+      return false;
+    }
+    final now = _clock().toUtc();
+    final lastFailure = _lastAutomaticFailureAt;
+    if (lastFailure != null &&
+        !lastFailure.isAfter(now) &&
+        now.difference(lastFailure) < backgroundRetryInterval) {
+      return false;
+    }
+    final completedAt = _state.lastScanCompletedAt;
+    return completedAt == null ||
+        completedAt.isAfter(now) ||
+        now.difference(completedAt) >= backgroundRefreshInterval;
   }
 
-  /// Called after the restored catalog has had a chance to render.
-  Future<void> refreshOnStartup() async {
-    if (!needsStartupRefresh) return;
-    _startupRefresh = null;
-    await scan(_state.root!);
+  /// The UI schedules this only when startup and user interactions are idle.
+  Future<void> refreshInBackground() async {
+    if (!needsBackgroundRefresh) return;
+    await _scan(_state.root!, automatic: true);
+  }
+
+  /// Automatic work yields to user activity without interrupting a manual scan.
+  void deferBackgroundRefresh() {
+    if (_isBackgroundRefreshing) _scanCancellation?.cancel();
   }
 
   Future<void> initialize() => _initialization ??= _initialize();
@@ -153,13 +178,6 @@ final class RiskSpikeController extends ChangeNotifier {
         if (!_isCurrentRootOperation(generation)) return;
         switch (access) {
           case Success<RootAccessState>(value: RootAccessState.available):
-            if (inventory?.matchesRoot(root.locator) ?? false) {
-              _startupRefresh = (
-                root: root.locator,
-                generation: generation,
-                scanSequence: _scanSequence,
-              );
-            }
             _setAuthorizedRoot(root, inventory);
           case Success<RootAccessState>():
             _fail(
@@ -234,6 +252,8 @@ final class RiskSpikeController extends ChangeNotifier {
           ),
         );
         try {
+          await _inventoryWrite;
+          if (!_isCurrentRootOperation(generation)) return;
           await _inventoryStore.clear();
         } on Object {
           // Access checks still prevent a released grant from being restored.
@@ -243,13 +263,20 @@ final class RiskSpikeController extends ChangeNotifier {
     }
   }
 
-  Future<void> scan(AuthorizedLibraryRoot root) async {
+  Future<void> scan(AuthorizedLibraryRoot root) => _scan(root);
+
+  Future<void> _scan(
+    AuthorizedLibraryRoot root, {
+    bool automatic = false,
+  }) async {
     if (_disposed) return;
     _scanCancellation?.cancel();
     final scanId = 'scan-${++_scanSequence}';
     final cancellation = CancellationController();
     _activeScanId = scanId;
     _scanCancellation = cancellation;
+    _isBackgroundRefreshing = automatic;
+    _pendingAutomaticInventory = null;
     _previousInventory =
         _state.scanCompleted && _sameRoot(_state.root?.locator, root.locator)
         ? _state
@@ -264,19 +291,26 @@ final class RiskSpikeController extends ChangeNotifier {
       ..start();
     if (_previousInventory == null) _subtitleEntries.clear();
     _emit(
-      (_previousInventory ?? RiskSpikeState(root: root)).copyWith(
-        phase: _refreshPhase(RiskSpikePhase.enumerating),
-        canCancel: true,
-        clearFailure: _previousInventory == null,
-        clearRefreshFailure: true,
-        clearSelectedFile: _previousInventory == null,
-        clearProbeResult: _previousInventory == null,
-        clearSubtitleWarning: _previousInventory == null,
-      ),
+      automatic
+          ? _state
+          : (_previousInventory ?? RiskSpikeState(root: root)).copyWith(
+              phase: _refreshPhase(RiskSpikePhase.enumerating),
+              canCancel: true,
+              clearFailure: _previousInventory == null,
+              clearRefreshFailure: true,
+              clearSelectedFile: _previousInventory == null,
+              clearProbeResult: _previousInventory == null,
+              clearSubtitleWarning: _previousInventory == null,
+            ),
     );
 
     var terminalReceived = false;
     try {
+      if (_activeScanId != scanId) return;
+      if (cancellation.token.isCancelled) {
+        _finishUnsuccessfulScan(RiskSpikePhase.cancelled);
+        return;
+      }
       await for (final event in storage.enumerateRecursively(
         root: root.locator,
         scanId: scanId,
@@ -302,12 +336,24 @@ final class RiskSpikeController extends ChangeNotifier {
       }
     } finally {
       if (_activeScanId == scanId) {
+        final inventory = _pendingAutomaticInventory;
+        if (automatic &&
+            inventory != null &&
+            !cancellation.token.isCancelled &&
+            _sameRoot(_state.root?.locator, inventory.root)) {
+          _publishInventory(inventory);
+        }
         _scanCancellation = null;
         _activeScanId = null;
         _pendingScanState = null;
         _previousInventory = null;
         _pendingEntryBatches.clear();
+        _pendingAutomaticInventory = null;
         _scanProgressClock.stop();
+        if (automatic) {
+          _isBackgroundRefreshing = false;
+          if (!_disposed) notifyListeners();
+        }
       }
     }
   }
@@ -341,6 +387,7 @@ final class RiskSpikeController extends ChangeNotifier {
     AuthorizedLibraryRoot root,
     ScanInventory? inventory,
   ) {
+    _lastAutomaticFailureAt = null;
     _subtitleEntries.clear();
     if (inventory == null || !inventory.matchesRoot(root.locator)) {
       _emit(RiskSpikeState(phase: RiskSpikePhase.ready, root: root));
@@ -372,6 +419,8 @@ final class RiskSpikeController extends ChangeNotifier {
     _pendingSubtitleEntries.clear();
     _pendingEntryBatches.clear();
     _scanProgressClock.stop();
+    _isBackgroundRefreshing = false;
+    _pendingAutomaticInventory = null;
   }
 
   void selectFile(StorageEntrySnapshot entry) {
@@ -590,11 +639,13 @@ final class RiskSpikeController extends ChangeNotifier {
       case StorageScanStarted():
         break;
       case StorageScanBatch(:final entries):
+        if (_scanCancellation?.token.isCancelled ?? true) break;
         if (_previousInventory != null) {
           _pendingEntryBatches.add(List.unmodifiable(entries));
           _pendingRefreshDiscoveredCount += entries.length;
           final elapsed = _scanProgressClock.elapsedMilliseconds;
-          if (elapsed - _lastScanProgressMillis >= 150) {
+          if (!_isBackgroundRefreshing &&
+              elapsed - _lastScanProgressMillis >= 150) {
             _lastScanProgressMillis = elapsed;
             _emit(
               _state.copyWith(discoveredCount: _pendingRefreshDiscoveredCount),
@@ -665,7 +716,7 @@ final class RiskSpikeController extends ChangeNotifier {
           _finishUnsuccessfulScan(RiskSpikePhase.cancelled);
           return;
         }
-        final completedAt = DateTime.now().toUtc();
+        final completedAt = _clock().toUtc();
         final root = pending.root!.locator;
         final cancellation = _scanCancellation;
         final inventory = _previousInventory == null
@@ -695,30 +746,16 @@ final class RiskSpikeController extends ChangeNotifier {
           _finishUnsuccessfulScan(RiskSpikePhase.cancelled);
           return;
         }
-        _subtitleEntries
-          ..clear()
-          ..addAll(inventory.subtitles);
-        _emit(
-          _state.copyWith(
-            phase: _refreshPhase(RiskSpikePhase.filesAvailable),
-            entries: inventory.videos,
-            artworkEntries: inventory.artwork,
-            discoveredCount: inventory.discoveredCount,
-            ignoredCount: inventory.ignoredCount,
-            videoCount: inventory.videos.length,
-            subtitleCount: inventory.subtitles.length,
-            scanCompleted: true,
-            lastScanCompletedAt: completedAt,
-            canCancel: false,
-            clearFailure: _previousInventory == null,
-            clearRefreshFailure: true,
-          ),
-        );
+        final automatic = _isBackgroundRefreshing;
+        if (!automatic) _publishInventory(inventory);
         if (_activeScanId != event.scanId) return;
-        try {
-          await _inventoryStore.save(inventory);
-        } on Object {
-          // A cache write failure must not discard a successful live scan.
+        await _saveInventory(inventory, event.scanId);
+        if (automatic &&
+            !_disposed &&
+            _activeScanId == event.scanId &&
+            !(cancellation?.token.isCancelled ?? true) &&
+            _sameRoot(_state.root?.locator, root)) {
+          _pendingAutomaticInventory = inventory;
         }
       case StorageScanCancelled():
         _finishUnsuccessfulScan(RiskSpikePhase.cancelled);
@@ -728,7 +765,15 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   void _finishUnsuccessfulScan(RiskSpikePhase phase, [AppFailure? failure]) {
+    if (_scanCancellation?.token.isCancelled ?? false) {
+      phase = RiskSpikePhase.cancelled;
+      failure = null;
+    }
     final previous = _previousInventory;
+    if (_isBackgroundRefreshing) {
+      if (failure != null) _lastAutomaticFailureAt = _clock().toUtc();
+      return;
+    }
     _emit(
       _state.copyWith(
         phase: _refreshPhase(phase),
@@ -748,6 +793,107 @@ final class RiskSpikeController extends ChangeNotifier {
       ),
     );
   }
+
+  Future<void> _saveInventory(ScanInventory inventory, String scanId) {
+    // A slow older write must finish before a newer scan replaces its cache.
+    final writing = _inventoryWrite.then((_) async {
+      if (_disposed ||
+          _activeScanId != scanId ||
+          (_scanCancellation?.token.isCancelled ?? true) ||
+          !_sameRoot(_state.root?.locator, inventory.root)) {
+        return;
+      }
+      try {
+        await _inventoryStore.save(inventory);
+      } on Object {
+        // A cache write failure must not discard a successful live scan.
+      }
+    });
+    _inventoryWrite = writing;
+    return writing;
+  }
+
+  void _publishInventory(ScanInventory inventory) {
+    final unchanged = _sameInventory(inventory);
+    if (!unchanged) {
+      _subtitleEntries
+        ..clear()
+        ..addAll(inventory.subtitles);
+    }
+    _lastAutomaticFailureAt = null;
+    _emitScanResult(
+      _state.copyWith(
+        phase: _isBackgroundRefreshing
+            ? _state.phase
+            : _refreshPhase(RiskSpikePhase.filesAvailable),
+        entries: unchanged ? null : inventory.videos,
+        artworkEntries: unchanged ? null : inventory.artwork,
+        discoveredCount: inventory.discoveredCount,
+        ignoredCount: inventory.ignoredCount,
+        videoCount: inventory.videos.length,
+        subtitleCount: inventory.subtitles.length,
+        scanCompleted: true,
+        lastScanCompletedAt: inventory.completedAtUtc,
+        canCancel: false,
+        clearFailure: _previousInventory == null,
+        clearRefreshFailure: true,
+      ),
+    );
+  }
+
+  void _emitScanResult(RiskSpikeState next) {
+    if (_isBackgroundRefreshing) {
+      if (!_disposed) _state = next;
+    } else {
+      _emit(next);
+    }
+  }
+
+  bool _sameInventory(ScanInventory inventory) {
+    final previous = _previousInventory;
+    return previous != null &&
+        previous.discoveredCount == inventory.discoveredCount &&
+        previous.ignoredCount == inventory.ignoredCount &&
+        previous.videoCount == inventory.videos.length &&
+        previous.subtitleCount == inventory.subtitles.length &&
+        _sameEntries(previous.entries, inventory.videos) &&
+        _sameEntries(previous.artworkEntries, inventory.artwork) &&
+        _sameEntries(_subtitleEntries, inventory.subtitles);
+  }
+
+  static bool _sameEntries(
+    List<StorageEntrySnapshot> previous,
+    List<StorageEntrySnapshot> current,
+  ) {
+    if (previous.length != current.length) return false;
+    final byKey = <String, List<StorageEntrySnapshot>>{};
+    for (final entry in previous) {
+      (byKey[entry.storageKey] ??= []).add(entry);
+    }
+    for (final entry in current) {
+      final candidates = byKey[entry.storageKey];
+      if (candidates == null) return false;
+      final index = candidates.indexWhere((other) => _sameEntry(other, entry));
+      if (index < 0) return false;
+      candidates.removeAt(index);
+      if (candidates.isEmpty) byKey.remove(entry.storageKey);
+    }
+    return byKey.isEmpty;
+  }
+
+  static bool _sameEntry(
+    StorageEntrySnapshot left,
+    StorageEntrySnapshot right,
+  ) =>
+      left.storageKey == right.storageKey &&
+      left.parentStorageKey == right.parentStorageKey &&
+      left.relativePath == right.relativePath &&
+      left.displayName == right.displayName &&
+      left.isDirectory == right.isDirectory &&
+      left.mimeType == right.mimeType &&
+      left.sizeBytes == right.sizeBytes &&
+      left.modifiedAtUtc == right.modifiedAtUtc &&
+      setEquals(left.flags, right.flags);
 
   RiskSpikePhase _refreshPhase(RiskSpikePhase scanPhase) =>
       _previousInventory != null &&

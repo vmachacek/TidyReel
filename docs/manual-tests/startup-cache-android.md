@@ -35,9 +35,38 @@ Validated on 2026-10-08 with the connected Samsung SM-T500 (Android 12).
   reject late worker results. Inventory classification runs in an isolate;
   progress updates are bounded at 150 ms in Dart and Android.
 
-After adding, removing, or editing media, the next launch refreshes the library
-automatically. Use **Rescan library** to refresh it immediately. Missing,
-corrupt, incompatible, or differently scoped cache
-data triggers a first scan after folder access is checked. Canceled and failed
-refreshes retain the last complete inventory. Live file-change detection
-and incremental reconciliation remain outside this change.
+## Idle refresh policy (2026-10-09)
+
+Cached startup now restores the last complete inventory without enumerating the
+media folder. An automatic refresh becomes due six hours after the last
+successful scan, including across restarts. Missing or future completion times
+are treated as stale. Missing, corrupt, incompatible, or differently scoped
+cache data still triggers the first scan immediately after folder access is
+checked. **Rescan library** always bypasses the automatic schedule.
+
+Automatic scans wait for local preferences and catalog grouping, then a
+15-second presentation grace period and five seconds without touch, scrolling,
+keyboard events, or text edits. The catalog must be visible, the app resumed,
+and the player closed. Activity interrupts automatic work; the last complete
+inventory remains available. If provider cancellation takes longer than the
+quiet interval, a later maintenance check retries it. Freshness is checked once
+a minute during an idle session, and automatic failures back off for 30 minutes
+in that session. This is opportunistic maintenance while the app is open;
+there is no periodic Android job while the app is closed.
+
+Automatic scans do not publish progress or error banners. Enumeration uses a
+dedicated Android thread with background priority, and inventory classification
+and cache encoding run in isolates. Equal inventories retain the current entry
+list identities while updating the completion time, so an unchanged folder does
+not trigger catalog regrouping. Equal cached metadata also avoids unnecessary
+regrouping and preference writes. Results are published only after persistence
+and a final cancellation/root check, protecting interactions that begin while
+the cache write is in flight.
+
+Validation: 397 app tests, 27 package tests, 58 Android unit tests, and
+workspace analysis passed. Coverage includes stale/fresh and empty caches,
+startup grace, held touch, text input, scrolling cancellation, covered routes,
+paused app/player, retry throttling, unchanged/reordered inventory, changed
+video/artwork/subtitle details, and cancellation during cache persistence.
+Live file-change detection and incremental folder reconciliation remain future
+optimizations.

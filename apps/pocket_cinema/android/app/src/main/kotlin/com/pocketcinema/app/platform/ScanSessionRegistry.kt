@@ -1,13 +1,16 @@
 package com.pocketcinema.app.platform
 
+import android.os.Process
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.FutureTask
+import java.util.concurrent.ThreadFactory
 import java.util.concurrent.atomic.AtomicBoolean
 
 class ScanSessionRegistry(
-    private val executor: ExecutorService = Executors.newSingleThreadExecutor(),
+    private val executor: ExecutorService =
+        Executors.newSingleThreadExecutor(BackgroundScanThreadFactory()),
 ) : AutoCloseable {
     private val sessions = ConcurrentHashMap<String, ScanSession>()
 
@@ -73,6 +76,16 @@ class ScanSessionRegistry(
         val terminal: AtomicBoolean,
         val future: FutureTask<Unit>,
     )
+}
+
+/** Lower only the dedicated scanner worker so foreground rendering gets CPU first. */
+internal class BackgroundScanThreadFactory(
+    private val setThreadPriority: (Int) -> Unit = Process::setThreadPriority,
+) : ThreadFactory {
+    override fun newThread(task: Runnable): Thread = Thread({
+        setThreadPriority(Process.THREAD_PRIORITY_BACKGROUND)
+        task.run()
+    }, "pocket-cinema-scan")
 }
 
 private class AtomicScanCancellation : ScanCancellation {

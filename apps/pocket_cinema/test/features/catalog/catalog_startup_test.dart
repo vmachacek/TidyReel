@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:media_domain/media_domain.dart';
 import 'package:media_platform_storage/media_platform_storage.dart';
+import 'package:media_playback/media_playback.dart';
 import 'package:pocket_cinema/app/app_theme.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 import 'package:pocket_cinema/features/catalog/catalog_skeleton.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_controller.dart';
+import 'package:pocket_cinema/features/risk_spike/playback_session_coordinator.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_state.dart';
 import 'package:pocket_cinema/features/risk_spike/scan_inventory_store.dart';
 import 'package:pocket_cinema/l10n/app_localizations.dart';
@@ -112,11 +114,12 @@ RiskSpikeController _controller(
   _ControlledStorage storage, {
   RiskSpikeState initialState = const RiskSpikeState(),
   MediaProbe? probe,
+  PlaybackSession? playback,
   ScanInventoryStore? inventoryStore,
 }) => RiskSpikeController(
   storage: storage,
   probe: probe ?? controller_fixtures.FakeMediaProbe(),
-  playback: controller_fixtures.FakePlaybackSession(),
+  playback: playback ?? controller_fixtures.FakePlaybackSession(),
   inventoryStore: inventoryStore ?? _MemoryInventory(),
   initialState: initialState,
 );
@@ -204,9 +207,7 @@ void main() {
       await _waitForLocalDiscovery(tester);
       await tester.pump();
 
-      expect(storage.scanCount, 1);
-      expect(cachedContentVisibleAtScanStart, isTrue);
-      expect(controller.state.canCancel, isTrue);
+      expect(storage.scanCount, 0);
       expect(_loading, findsNothing);
       final library = catalogLibrary(tester);
       final cachedTitle = library.currentTitles.single;
@@ -217,7 +218,13 @@ void main() {
       await tester.tap(find.byKey(const Key('jukebox-watchlist')));
       await tester.pump();
       expect(library.isSaved(cachedTitle), isTrue);
-      expect(controller.state.canCancel, isTrue);
+      await tester.pump(const Duration(seconds: 15));
+      expect(storage.scanCount, 1);
+      expect(cachedContentVisibleAtScanStart, isTrue);
+      expect(controller.isBackgroundRefreshing, isTrue);
+      expect(controller.state.canCancel, isFalse);
+      expect(find.byTooltip('Cancel scan'), findsNothing);
+      expect(find.textContaining('Refreshing library'), findsNothing);
       storage.batch([
         ...store.saved!.videos,
         files.file('Movies/Beta (2017).mp4'),
@@ -243,7 +250,7 @@ void main() {
   );
 
   for (final empty in [false, true]) {
-    testWidgets('startup refresh runs once per launch (empty cache: $empty)', (
+    testWidgets('fresh cache skips later launches (empty cache: $empty)', (
       tester,
     ) async {
       await _surface(tester, const Size(1200, 1000));
@@ -257,10 +264,11 @@ void main() {
 
       await tester.pumpWidget(_app(controller));
       await _waitForLocalDiscovery(tester);
-      await tester.pump();
+      expect(storage.scanCount, 0);
+      await tester.pump(const Duration(seconds: 15));
 
       expect(storage.scanCount, 1);
-      expect(controller.state.canCancel, isTrue);
+      expect(controller.isBackgroundRefreshing, isTrue);
       expect(_loading, findsNothing);
       if (!empty) storage.batch(store.saved!.videos);
       await _finishScan(tester, storage);
@@ -283,15 +291,11 @@ void main() {
       await nextController.initialize();
       await tester.pumpWidget(_app(nextController));
       await _waitForLocalDiscovery(tester);
-      await tester.pump();
+      await tester.pump(const Duration(seconds: 15));
 
-      expect(nextStorage.scanCount, 1);
-      expect(nextController.state.canCancel, isTrue);
+      expect(nextStorage.scanCount, 0);
+      expect(nextController.isBackgroundRefreshing, isFalse);
       expect(_loading, findsNothing);
-      if (!empty) nextStorage.batch(store.saved!.videos);
-      await _finishScan(tester, nextStorage);
-      await settleCatalog(tester);
-      expect(nextStorage.scanCount, 1);
       expect(tester.takeException(), isNull);
     });
   }
@@ -310,7 +314,7 @@ void main() {
     final entries = controller.state.entries;
     await tester.pumpWidget(_app(controller));
     await _waitForLocalDiscovery(tester);
-    await tester.pump();
+    await tester.pump(const Duration(seconds: 15));
     expect(storage.scanCount, 1);
     final library = catalogLibrary(tester);
     final title = library.currentTitles.single;
@@ -321,7 +325,8 @@ void main() {
     await _finishScan(tester, storage, fail: true);
     await settleCatalog(tester);
 
-    expect(controller.state.phase, RiskSpikePhase.failure);
+    expect(controller.state.phase, RiskSpikePhase.filesAvailable);
+    expect(controller.state.libraryFailure, isNull);
     expect(controller.state.entries, same(entries));
     expect(controller.state.scanCompleted, isTrue);
     expect(library.currentTitles.single.id, title.id);
@@ -330,8 +335,6 @@ void main() {
     expect(find.byType(JukeboxHero), findsOneWidget);
     expect(find.byKey(const Key('folder-onboarding')), findsNothing);
     final watchlist = find.byKey(const Key('jukebox-watchlist'));
-    // The scan failure panel above the hero can place its actions below the
-    // viewport. Scroll to the action before verifying the cached UI still works.
     await tester.ensureVisible(watchlist);
     await tester.pump();
     expect(tester.widget<IconButton>(watchlist).onPressed, isNotNull);
@@ -340,6 +343,141 @@ void main() {
     expect(library.isSaved(title), isTrue);
     expect(storage.scanCount, 1);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('touch, text input and scrolling defer automatic maintenance', (
+    tester,
+  ) async {
+    await _surface(tester, const Size(1200, 1000));
+    final store = _MemoryInventory(saved: _inventory());
+    final storage = _ControlledStorage();
+    final controller = _controller(storage, inventoryStore: store);
+    addTearDown(controller.dispose);
+    storage.roots.complete(const Success([fixtures.testRoot]));
+    await controller.initialize();
+    await tester.pumpWidget(_app(controller));
+    await _waitForLocalDiscovery(tester);
+    await tester.pump(const Duration(seconds: 14));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.text('All')),
+    );
+    await tester.pump(const Duration(seconds: 8));
+    expect(storage.scanCount, 0);
+    await gesture.up();
+    await tester.pump(const Duration(seconds: 4));
+    expect(storage.scanCount, 0);
+    await tester.enterText(find.byType(TextField), 'a');
+    await tester.pump(const Duration(seconds: 4));
+    expect(storage.scanCount, 0);
+    await tester.pump(const Duration(seconds: 1));
+    expect(storage.scanCount, 1);
+
+    await tester.drag(
+      find.byKey(const Key('catalog-scroll')),
+      const Offset(0, -150),
+    );
+    await tester.pumpAndSettle();
+    expect(controller.isBackgroundRefreshing, isFalse);
+    expect(controller.state.entries, same(store.saved!.videos));
+    await tester.pump(const Duration(seconds: 5));
+    expect(storage.scanCount, 2);
+    storage.batch(store.saved!.videos);
+    await _finishScan(tester, storage);
+    await settleCatalog(tester);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final covered in [false, true]) {
+    testWidgets(
+      'automatic refresh waits while ${covered ? 'a route covers home' : 'app is paused'}',
+      (tester) async {
+        await _surface(tester, const Size(1200, 1000));
+        final store = _MemoryInventory(saved: _inventory());
+        final storage = _ControlledStorage();
+        final controller = _controller(storage, inventoryStore: store);
+        addTearDown(controller.dispose);
+        storage.roots.complete(const Success([fixtures.testRoot]));
+        await controller.initialize();
+        await tester.pumpWidget(_app(controller));
+        await _waitForLocalDiscovery(tester);
+        final navigator = Navigator.of(
+          tester.element(find.byType(CatalogScreen)),
+        );
+        if (covered) {
+          unawaited(
+            navigator.push(
+              MaterialPageRoute<void>(
+                builder: (_) => const Scaffold(body: Text('Other screen')),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+        } else {
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.inactive,
+          );
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.hidden,
+          );
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.paused,
+          );
+        }
+        await tester.pump(const Duration(seconds: 20));
+        expect(storage.scanCount, 0);
+
+        if (covered) {
+          navigator.pop();
+          await tester.pumpAndSettle();
+        } else {
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.hidden,
+          );
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.inactive,
+          );
+          tester.binding.handleAppLifecycleStateChanged(
+            AppLifecycleState.resumed,
+          );
+        }
+        await tester.pump(const Duration(seconds: 5));
+        expect(storage.scanCount, 1);
+        storage.batch(store.saved!.videos);
+        await _finishScan(tester, storage);
+        await settleCatalog(tester);
+        expect(tester.takeException(), isNull);
+      },
+    );
+  }
+
+  testWidgets('an open paused player keeps background maintenance deferred', (
+    tester,
+  ) async {
+    await _surface(tester, const Size(1200, 1000));
+    final store = _MemoryInventory(saved: _inventory());
+    final storage = _ControlledStorage();
+    final controller = _controller(
+      storage,
+      inventoryStore: store,
+      playback: controller_fixtures.FakePlaybackSession(
+        initialSnapshot: const PlaybackSnapshot(isOpen: true),
+        allowStop: true,
+      ),
+    );
+    addTearDown(controller.dispose);
+    storage.roots.complete(const Success([fixtures.testRoot]));
+    await controller.initialize();
+    await tester.pumpWidget(_app(controller));
+    await _waitForLocalDiscovery(tester);
+    await tester.pump(const Duration(seconds: 20));
+    expect(storage.scanCount, 0);
+    await controller.closePlayer();
+    await tester.pump(const Duration(seconds: 15));
+    expect(storage.scanCount, 1);
+    storage.batch(store.saved!.videos);
+    await _finishScan(tester, storage);
+    await settleCatalog(tester);
   });
 
   for (final size in [const Size(390, 844), const Size(1200, 1000)]) {
@@ -686,8 +824,15 @@ class _ControlledStorage implements LibraryStorageGateway {
     scanCount++;
     onEnumerate?.call();
     _scanId = scanId;
-    _events = StreamController<StorageScanEvent>();
-    return _events!.stream;
+    final events = _events = StreamController<StorageScanEvent>();
+    unawaited(
+      cancellationToken.whenCancelled.then((_) async {
+        if (events.isClosed) return;
+        events.add(StorageScanCancelled(scanId));
+        await events.close();
+      }),
+    );
+    return events.stream;
   }
 
   void batch(List<StorageEntrySnapshot> entries) =>

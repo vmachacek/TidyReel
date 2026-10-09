@@ -153,6 +153,84 @@ void main() {
     },
   );
 
+  test('complete restored matches do not republish cached metadata', () async {
+    final source = FakeSource(), matcher = CatalogMatcher(source: source);
+    addTearDown(matcher.dispose);
+    final local = title(['My Show (1999)/Season 1/S01E01.mkv']);
+    final cacheKey = matcher.key('root', local);
+    matcher.restore({
+      cacheKey: CatalogResolvedMatch(candidate, [
+        episode(1, 'Start'),
+        episode(2, 'Return'),
+      ], manual: true).toJson(),
+    });
+    final cached = matcher.matches[cacheKey];
+    final revision = matcher.presentationRevision;
+    var presentationChanges = 0;
+    matcher.addListener(() {
+      if (matcher.presentationRevision != revision) presentationChanges++;
+    });
+
+    await matcher.enrich([local], 'root');
+
+    expect(source.searches, 0);
+    expect(source.requestedSeasons, isEmpty);
+    expect(matcher.matches[cacheKey], same(cached));
+    expect(matcher.presentationRevision, revision);
+    expect(presentationChanges, 0);
+    expect(matcher.apply([local], 'root').single.first.title, 'Start');
+  });
+
+  test('unchanged cached movies do not republish metadata', () async {
+    final source = FakeSource(), matcher = CatalogMatcher(source: source);
+    addTearDown(matcher.dispose);
+    final local = title(['My Movie (1999).mkv']);
+    final cacheKey = matcher.key('root', local);
+    matcher.restore({
+      cacheKey: const CatalogResolvedMatch(
+        CatalogMetadataCandidate(
+          providerId: '99',
+          name: 'My Movie',
+          year: 1999,
+        ),
+        [],
+      ).toJson(),
+    });
+    final cached = matcher.matches[cacheKey];
+    final revision = matcher.presentationRevision;
+
+    await matcher.enrich([local], 'root');
+
+    expect(source.searches, 0);
+    expect(source.requestedSeasons, isEmpty);
+    expect(matcher.matches[cacheKey], same(cached));
+    expect(matcher.presentationRevision, revision);
+    expect(matcher.apply([local], 'root').single.name, 'My Movie');
+  });
+
+  test('clearing a failure republishes otherwise unchanged metadata', () async {
+    final source = FakeSource(), matcher = CatalogMatcher(source: source);
+    addTearDown(matcher.dispose);
+    final local = title(['My Show (1999)/Season 1/S01E01.mkv']);
+    final cacheKey = matcher.key('root', local);
+    matcher.restore({
+      cacheKey: CatalogResolvedMatch(candidate, [episode(1, 'Start')]).toJson(),
+    });
+    matcher.failures[cacheKey] = 'Metadata unavailable.';
+    final cached = matcher.matches[cacheKey];
+    final revision = matcher.presentationRevision;
+
+    await matcher.enrich([local], 'root');
+
+    expect(matcher.matches[cacheKey], same(cached));
+    expect(matcher.failures, isEmpty);
+    expect(matcher.presentationRevision, revision + 1);
+    expect(
+      matcher.apply([local], 'root').single.matchStatus,
+      isNot(contains('unavailable')),
+    );
+  });
+
   test(
     'new seasons are fetched on a later scan without re-searching a title',
     () async {
@@ -163,6 +241,7 @@ void main() {
       await matcher.enrich([
         title(['My Show (1999)/Season 1/S01E01.mkv']),
       ], 'root');
+      final revision = matcher.presentationRevision;
       final rescanned = title([
         'My Show (1999)/Season 1/S01E01.mkv',
         'My Show (1999)/Season 2/S02E01.mkv',
@@ -170,6 +249,7 @@ void main() {
       await matcher.enrich([rescanned], 'root');
       expect(source.searches, 1);
       expect(source.requestedSeasons, [1, 2]);
+      expect(matcher.presentationRevision, revision + 1);
       expect(
         matcher.apply([rescanned], 'root').single.videos.last.title,
         'Season Two',

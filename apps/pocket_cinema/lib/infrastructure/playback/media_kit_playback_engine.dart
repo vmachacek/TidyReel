@@ -10,6 +10,14 @@ import 'package:media_playback/media_playback.dart';
 enum MediaKitOperation { initialize, open, play, pause, seek, subtitle, stop }
 
 final class MediaKitPlaybackEngine implements PlaybackEngine {
+  MediaKitPlaybackEngine({
+    Player Function()? playerFactory,
+    VideoController Function(Player)? videoControllerFactory,
+  }) : _playerFactory = playerFactory ?? Player.new,
+       _videoControllerFactory = videoControllerFactory ?? VideoController.new;
+
+  final Player Function() _playerFactory;
+  final VideoController Function(Player) _videoControllerFactory;
   final StreamController<PlaybackEvent> _events =
       StreamController<PlaybackEvent>.broadcast(sync: true);
   final List<StreamSubscription<Object?>> _subscriptions =
@@ -51,9 +59,9 @@ final class MediaKitPlaybackEngine implements PlaybackEngine {
     }
 
     try {
-      final player = Player();
+      final player = _playerFactory();
       _player = player;
-      _videoController = VideoController(player);
+      _videoController = _videoControllerFactory(player);
       _bindPlayerStreams(player);
       return const Success<void>(null);
     } on Object catch (error) {

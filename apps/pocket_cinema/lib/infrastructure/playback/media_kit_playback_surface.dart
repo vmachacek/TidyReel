@@ -20,8 +20,12 @@ final class MediaKitPlaybackSurface extends StatelessWidget {
     if (engine is! MediaKitPlaybackEngine) {
       return const SizedBox.expand();
     }
+    final controller = engine.videoController;
     return Video(
-      controller: engine.videoController,
+      // Video binds its dimension streams in initState. Each episode gets a
+      // new controller, so recreate the view instead of retaining old listeners.
+      key: ObjectKey(controller),
+      controller: controller,
       fit: BoxFit.contain,
       controls: NoVideoControls,
       wakelock: wakelock,

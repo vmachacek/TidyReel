@@ -7,11 +7,18 @@ shared Wi-Fi network or an account.
 ## Set up
 
 1. Install the current app on the Android phone and tablets.
-2. On the phone, tap the power icon, choose **My phone**, and tap
+2. On the phone, tap **Pocket Cinema** in the app bar three times within two
+   seconds, choose **My phone**, and tap
    **Enable phone control**.
-3. On each tablet, tap the power icon, choose **Tablet**, and tap
+3. On each tablet, tap **Pocket Cinema** three times within two seconds, choose
+   **Tablet**, and tap
    **Enable nearby control**.
 4. Allow Android's Bluetooth/Nearby devices permission and turn Bluetooth on.
+
+Kill switch controls are hidden from the app bar and Library Settings; the
+three-tap shortcut opens their sheet from the app title, including before a media
+folder is connected. One or two taps do nothing, and the tap count resets after
+two seconds.
 
 These are local roles, not Bluetooth pairing. Android 10–11 additionally requires
 location permission and the system Location setting for BLE scanning. This app
@@ -32,7 +39,7 @@ broadcasting.
 The loading state survives a tablet restart and losing radio contact. If the
 phone is unavailable, hold the Loading spinner for five seconds, then choose
 **Restore tablet**. This also disables nearby control on that tablet; enable it
-again in Settings when needed.
+again through the three-tap app-title shortcut when needed.
 
 ## Limits
 
@@ -49,8 +56,9 @@ activating the mode.
 
 ## Verification
 
-Automated checks cover native packet validation, persisted modes, Bluetooth
-startup failures, receive ordering, local recovery, Back/touch blocking, and
+Automated checks cover the hidden three-tap shortcut and its timeout, native
+packet validation, persisted modes, Bluetooth startup failures, receive
+ordering, local recovery, Back/touch blocking, and
 playback activation during opening and autoplay. For a live two-device check:
 
 1. Enable phone and tablet roles on two Android devices with Wi-Fi disconnected.

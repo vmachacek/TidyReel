@@ -5,8 +5,6 @@ import 'package:media_platform_storage/media_platform_storage.dart';
 
 import '../../app/app_brand.dart';
 import '../../app/app_icon.dart';
-import '../kill_switch/kill_switch_scope.dart';
-import '../kill_switch/kill_switch_settings.dart';
 import '../risk_spike/risk_spike_controller.dart';
 import '../risk_spike/risk_spike_screen.dart';
 import '../risk_spike/risk_spike_state.dart';
@@ -213,7 +211,6 @@ class _CatalogScreenState extends State<CatalogScreen>
           appBar: AppBar(
             title: const AppBrand(),
             actions: [
-              const KillSwitchAction(),
               IconButton(
                 onPressed: diagnostics,
                 tooltip: 'Diagnostics',
@@ -396,7 +393,6 @@ class _CatalogScreenState extends State<CatalogScreen>
             child: AppBrand(),
           ),
           actions: [
-            const KillSwitchAction(),
             TextButton.icon(
               onPressed: diagnostics,
               icon: const Icon(Icons.bug_report_outlined),
@@ -880,10 +876,6 @@ class _CatalogScreenState extends State<CatalogScreen>
                 ),
               ),
               const Divider(height: 32),
-              if (KillSwitchScope.maybeOf(context) case final control?) ...[
-                KillSwitchSettings(controller: control),
-                const Divider(height: 32),
-              ],
               CatalogMetadataSettings(library: library),
             ],
           ),

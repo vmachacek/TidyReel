@@ -3,7 +3,25 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'kill_switch_controller.dart';
-import 'kill_switch_scope.dart';
+
+Future<void> showKillSwitchSettings(
+  BuildContext context,
+  KillSwitchController controller,
+) => showModalBottomSheet<void>(
+  context: context,
+  isScrollControlled: true,
+  builder: (context) => SafeArea(
+    child: SingleChildScrollView(
+      padding: EdgeInsets.fromLTRB(
+        24,
+        24,
+        24,
+        MediaQuery.viewInsetsOf(context).bottom + 24,
+      ),
+      child: KillSwitchSettings(controller: controller),
+    ),
+  ),
+);
 
 class KillSwitchSettings extends StatefulWidget {
   const KillSwitchSettings({required this.controller, super.key});
@@ -132,41 +150,4 @@ class _KillSwitchSettingsState extends State<KillSwitchSettings> {
       );
     },
   );
-}
-
-class KillSwitchAction extends StatelessWidget {
-  const KillSwitchAction({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final controller = KillSwitchScope.maybeOf(context);
-    if (controller == null) return const SizedBox.shrink();
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, _) => IconButton(
-        tooltip: 'Kill switch',
-        icon: Icon(
-          Icons.power_settings_new,
-          color: controller.isController && controller.active
-              ? Theme.of(context).colorScheme.primary
-              : null,
-        ),
-        onPressed: () => showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          builder: (context) => SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                24,
-                24,
-                24,
-                MediaQuery.viewInsetsOf(context).bottom + 24,
-              ),
-              child: KillSwitchSettings(controller: controller),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 }

@@ -8,9 +8,11 @@ import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 import 'package:pocket_cinema/features/kill_switch/kill_switch_controller.dart';
 import 'package:pocket_cinema/features/kill_switch/kill_switch_radio.dart';
+import 'package:pocket_cinema/features/kill_switch/kill_switch_settings.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_screen.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_state.dart';
 
+import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
 
 class _MemoryStore implements KillSwitchPreferencesStore {
@@ -62,6 +64,7 @@ void main() {
     bool phone = false,
     bool active = true,
     bool paired = true,
+    RiskSpikeState state = const RiskSpikeState(),
   }) async {
     final radio = _SilentRadio();
     addTearDown(radio.stream.close);
@@ -69,8 +72,7 @@ void main() {
       store: _MemoryStore(phone: phone, active: active, paired: paired),
       radio: radio,
     );
-    final fixture =
-        fixtures.testApp(state: const RiskSpikeState()) as MaterialApp;
+    final fixture = fixtures.testApp(state: state) as MaterialApp;
     final diagnostics = (fixture.home! as MediaQuery).child as RiskSpikeScreen;
     await tester.pumpWidget(
       PocketCinemaApp(
@@ -83,6 +85,92 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     return control;
   }
+
+  Future<void> openHiddenSettings(WidgetTester tester) async {
+    for (var tap = 0; tap < 3; tap++) {
+      await tester.tap(find.text('Pocket Cinema'));
+      await tester.pump();
+    }
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('kill switch is hidden until the third brand tap', (
+    tester,
+  ) async {
+    await open(tester, paired: false, active: false);
+    expect(find.byTooltip('Kill switch'), findsNothing);
+    expect(find.byIcon(Icons.power_settings_new), findsNothing);
+    expect(find.byType(KillSwitchSettings), findsNothing);
+
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pumpAndSettle();
+    expect(find.byType(KillSwitchSettings), findsOneWidget);
+
+    Navigator.of(tester.element(find.byType(KillSwitchSettings))).pop();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pumpAndSettle();
+    expect(find.byType(KillSwitchSettings), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('brand tap sequence expires two seconds after its first tap', (
+    tester,
+  ) async {
+    await open(tester, paired: false, active: false);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump(const Duration(milliseconds: 1100));
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump(const Duration(milliseconds: 1000));
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pump();
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    await tester.tap(find.text('Pocket Cinema'));
+    await tester.pumpAndSettle();
+    expect(find.byType(KillSwitchSettings), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('library settings keep kill switch controls hidden', (
+    tester,
+  ) async {
+    await open(tester, active: false, state: fixtures.filesAvailableState);
+    await settleCatalog(tester);
+    expect(find.byTooltip('Kill switch'), findsNothing);
+    expect(find.byIcon(Icons.power_settings_new), findsNothing);
+    await tester.tap(find.byTooltip('Library settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Library Settings'), findsOneWidget);
+    expect(find.text('Rescan library'), findsOneWidget);
+    expect(find.byType(KillSwitchSettings), findsNothing);
+    expect(find.text('Kill switch'), findsNothing);
+    expect(find.text('Disable nearby control'), findsNothing);
+    Navigator.of(tester.element(find.text('Library Settings'))).pop();
+    await tester.pumpAndSettle();
+    await openHiddenSettings(tester);
+    expect(find.byType(KillSwitchSettings), findsOneWidget);
+    expect(find.text('Listening for nearby Bluetooth control'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('loading covers routes and sheets and blocks touch and Back', (
     tester,
@@ -170,8 +258,7 @@ void main() {
     'phone can activate and restore without connecting a media folder',
     (tester) async {
       final control = await open(tester, phone: true, active: false);
-      await tester.tap(find.byTooltip('Kill switch'));
-      await tester.pumpAndSettle();
+      await openHiddenSettings(tester);
       await tester.ensureVisible(find.byKey(const Key('kill-switch-mode')));
       await tester.tap(find.byKey(const Key('kill-switch-mode')));
       await tester.pumpAndSettle();
@@ -190,8 +277,7 @@ void main() {
     tester,
   ) async {
     final control = await open(tester, paired: false, active: false);
-    await tester.tap(find.byTooltip('Kill switch'));
-    await tester.pumpAndSettle();
+    await openHiddenSettings(tester);
     await tester.tap(find.text('Tablet'));
     await tester.pumpAndSettle();
     expect(find.byType(TextField), findsNothing);

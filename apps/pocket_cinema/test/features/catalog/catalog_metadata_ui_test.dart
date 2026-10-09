@@ -33,7 +33,7 @@ Future<void> _openOnlyTitle(WidgetTester tester) async {
   await tester.scrollUntilVisible(
     find.byType(PosterCard).hitTestable(),
     300,
-    scrollable: find.byType(Scrollable).first,
+    scrollable: screens.catalogScrollable,
   );
   await tester.tap(find.byType(PosterCard));
   await settleCatalog(tester);

@@ -44,6 +44,9 @@ class _CatalogScreenState extends State<CatalogScreen>
     defer: widget.controller.deferBackgroundRefresh,
   );
   String query = '', filter = 'All', sort = 'Recently Modified';
+  bool searchVisible = false;
+  final searchController = TextEditingController();
+  final searchFocus = FocusNode();
   bool listView = false;
   int destination = 0;
   String? featuredTitleId;
@@ -148,6 +151,8 @@ class _CatalogScreenState extends State<CatalogScreen>
     widget.controller.removeListener(autoScan);
     library.removeListener(autoScan);
     backgroundRefresh.dispose();
+    searchController.dispose();
+    searchFocus.dispose();
     library.dispose();
     super.dispose();
   }
@@ -163,6 +168,81 @@ class _CatalogScreenState extends State<CatalogScreen>
   Future<void> connect() async {
     await widget.controller.chooseRoot();
   }
+
+  void toggleSearch() {
+    backgroundRefresh.activity();
+    if (searchVisible) {
+      searchFocus.unfocus();
+      searchController.clear();
+    }
+    setState(() {
+      searchVisible = !searchVisible;
+      if (!searchVisible) query = '';
+    });
+  }
+
+  PreferredSizeWidget catalogAppBar(BuildContext context) => AppBar(
+    toolbarHeight: 64,
+    title: Row(
+      children: [
+        AppBrand(showTitle: MediaQuery.sizeOf(context).width >= 760),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SingleChildScrollView(
+            key: const Key('catalog-category-filters'),
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                for (final tab in ['All', 'Movies', 'TV Shows', 'Watchlist'])
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(tab),
+                      selected: filter == tab,
+                      onSelected: (_) => setState(() => filter = tab),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      IconButton(
+        key: const Key('catalog-search-toggle'),
+        onPressed: toggleSearch,
+        tooltip: searchVisible ? 'Close search' : 'Search library',
+        icon: Icon(searchVisible ? Icons.close : Icons.search),
+      ),
+      const SizedBox(width: 8),
+    ],
+    bottom: searchVisible
+        ? PreferredSize(
+            preferredSize: const Size.fromHeight(72),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: TextField(
+                key: const Key('catalog-search-field'),
+                controller: searchController,
+                focusNode: searchFocus,
+                autofocus: true,
+                textInputAction: TextInputAction.search,
+                onChanged: (value) {
+                  backgroundRefresh.activity();
+                  setState(() => query = value);
+                },
+                onSubmitted: (_) => searchFocus.unfocus(),
+                decoration: const InputDecoration(
+                  prefixIcon: Icon(Icons.search),
+                  hintText: 'Search your library…',
+                  isDense: true,
+                ),
+              ),
+            ),
+          )
+        : null,
+  );
 
   void details(CatalogTitle title) => Navigator.of(context).push(
     MaterialPageRoute<void>(
@@ -387,13 +467,7 @@ class _CatalogScreenState extends State<CatalogScreen>
           ? carouselTitles.first
           : null;
       return Scaffold(
-        appBar: AppBar(
-          title: const FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.centerLeft,
-            child: AppBrand(),
-          ),
-        ),
+        appBar: catalogAppBar(context),
         bottomNavigationBar: MediaQuery.sizeOf(context).width < 850
             ? NavigationBar(
                 selectedIndex: destination,
@@ -441,38 +515,6 @@ class _CatalogScreenState extends State<CatalogScreen>
                     runSpacing: 12,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      for (final tab in [
-                        'All',
-                        'Movies',
-                        'TV Shows',
-                        'Watchlist',
-                      ])
-                        ChoiceChip(
-                          label: Text(tab),
-                          selected: filter == tab,
-                          onSelected: (_) => setState(() => filter = tab),
-                        ),
-                      SizedBox(
-                        width: 280,
-                        child: TextField(
-                          onChanged: (v) {
-                            backgroundRefresh.activity();
-                            setState(() => query = v);
-                          },
-                          decoration: const InputDecoration(
-                            prefixIcon: Icon(Icons.search),
-                            hintText: 'Search your library…',
-                            isDense: true,
-                          ),
-                        ),
-                      ),
-                      SizedBox(
-                        width: 240,
-                        child: chip(
-                          'LOCAL STORAGE • ${state.root?.displayName ?? 'Restoring folder…'}',
-                          maxLines: 1,
-                        ),
-                      ),
                       IconButton(
                         onPressed: settings,
                         tooltip: 'Library settings',

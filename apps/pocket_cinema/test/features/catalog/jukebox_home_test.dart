@@ -132,7 +132,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(const Key('jukebox-title')),
         -250,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: screens.catalogScrollable,
       );
       await settleCatalog(tester);
       expect(_titleOrder(tester), ['Beta Show', 'Zulu', 'Alpha', 'Gamma Show']);
@@ -142,7 +142,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Movies').hitTestable(),
         -250,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: screens.catalogScrollable,
       );
       await settleCatalog(tester);
       await tester.tap(find.text('Movies'));
@@ -448,7 +448,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.byKey(const Key('jukebox-title')),
         -250,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: screens.catalogScrollable,
       );
       await settleCatalog(tester);
       expect(_selectedTitle(tester), 'Alpha');
@@ -457,7 +457,7 @@ void main() {
       await tester.scrollUntilVisible(
         find.text('Movies').hitTestable(),
         -250,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: screens.catalogScrollable,
       );
       await settleCatalog(tester);
       await tester.tap(find.text('Movies'));

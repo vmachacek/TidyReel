@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pocket_cinema/app/app_brand.dart';
 import 'package:pocket_cinema/app/pocket_cinema_app.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
@@ -93,6 +94,34 @@ void main() {
     }
     await tester.pumpAndSettle();
   }
+
+  testWidgets('compact catalog logo still opens hidden settings on third tap', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await open(
+      tester,
+      paired: false,
+      active: false,
+      state: fixtures.filesAvailableState,
+    );
+    await settleCatalog(tester);
+    expect(find.text('Pocket Cinema'), findsNothing);
+    final brand = find.byType(AppBrand);
+    for (var tap = 0; tap < 2; tap++) {
+      await tester.tap(brand);
+      await tester.pump();
+      expect(find.byType(KillSwitchSettings), findsNothing);
+    }
+    await tester.tap(brand);
+    await tester.pumpAndSettle();
+    expect(find.byType(KillSwitchSettings), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
 
   testWidgets('screen-time pause is hidden until the third brand tap', (
     tester,

@@ -35,7 +35,7 @@ Future<void> _reveal(
   await tester.scrollUntilVisible(
     finder,
     delta,
-    scrollable: find.byType(Scrollable).first,
+    scrollable: screens.catalogScrollable,
   );
   await settleCatalog(tester);
 }
@@ -181,7 +181,8 @@ void main() {
     await settleCatalog(tester);
 
     await _filter(tester, 'All');
-    await _reveal(tester, find.byType(TextField));
+    await tester.tap(find.byTooltip('Search library'));
+    await settleCatalog(tester);
     await tester.enterText(find.byType(TextField), 'Alpha');
     await settleCatalog(tester);
     await _reveal(tester, _card('Alpha'), delta: 250);
@@ -189,7 +190,6 @@ void main() {
     expect(_card('Zulu'), findsNothing);
     expect(_card('My Show'), findsNothing);
 
-    await _reveal(tester, find.byType(TextField));
     await tester.enterText(find.byType(TextField), 'missing');
     await settleCatalog(tester);
     expect(find.byType(PosterCard), findsNothing);

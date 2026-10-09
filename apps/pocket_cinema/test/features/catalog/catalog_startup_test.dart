@@ -367,6 +367,8 @@ void main() {
     await gesture.up();
     await tester.pump(const Duration(seconds: 4));
     expect(storage.scanCount, 0);
+    await tester.tap(find.byTooltip('Search library'));
+    await tester.pump();
     await tester.enterText(find.byType(TextField), 'a');
     await tester.pump(const Duration(seconds: 4));
     expect(storage.scanCount, 0);

@@ -7,8 +7,13 @@ import '../features/kill_switch/kill_switch_settings.dart';
 import 'app_icon.dart';
 
 class AppBrand extends StatefulWidget {
-  const AppBrand({this.title = 'Pocket Cinema', super.key});
+  const AppBrand({
+    this.title = 'Pocket Cinema',
+    this.showTitle = true,
+    super.key,
+  });
   final String title;
+  final bool showTitle;
 
   @override
   State<AppBrand> createState() => _AppBrandState();
@@ -46,27 +51,38 @@ class _AppBrandState extends State<AppBrand> {
   }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-    behavior: HitTestBehavior.opaque,
-    onTap: KillSwitchScope.maybeOf(context) == null ? null : _tap,
-    child: Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        const AppIcon(),
-        const SizedBox(width: 8),
-        Flexible(
-          child: Text(
-            widget.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Color(0xFFFFB4A3),
-              fontWeight: FontWeight.w800,
-              fontSize: 18,
+  Widget build(BuildContext context) => Semantics(
+    label: widget.showTitle ? null : widget.title,
+    child: GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: KillSwitchScope.maybeOf(context) == null ? null : _tap,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.showTitle)
+            const AppIcon()
+          else
+            const SizedBox.square(
+              dimension: 48,
+              child: Center(child: AppIcon()),
             ),
-          ),
-        ),
-      ],
+          if (widget.showTitle) ...[
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                widget.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Color(0xFFFFB4A3),
+                  fontWeight: FontWeight.w800,
+                  fontSize: 18,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
     ),
   );
 }

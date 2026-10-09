@@ -40,20 +40,21 @@ class MainActivity : FlutterFragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        playerControls?.resume()
         renderingPerformance?.resume()
         enterImmersiveMode()
     }
 
     override fun onPause() {
-        playerControls?.pause()
         renderingPerformance?.pause()
         super.onPause()
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) enterImmersiveMode()
+        if (hasFocus) {
+            playerControls?.reapplyWatchingDisplay()
+            enterImmersiveMode()
+        }
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

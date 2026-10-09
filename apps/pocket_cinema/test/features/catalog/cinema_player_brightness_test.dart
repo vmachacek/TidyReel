@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -34,23 +36,64 @@ class _UnusedProbe implements MediaProbe {
       throw StateError('Unexpected probe call');
 }
 
+class _WatchingControls {
+  _WatchingControls(this.systemBrightness);
+
+  final double systemBrightness;
+  int? sessionId;
+  double brightness = -1;
+  double _originalBrightness = -1;
+
+  Future<Object?> call(MethodCall call) async {
+    switch (call.method) {
+      case 'beginWatching':
+        if (sessionId == null) {
+          _originalBrightness = brightness;
+          brightness = brightness >= 0 ? brightness : systemBrightness;
+        }
+        sessionId = call.arguments as int;
+        return brightness;
+      case 'setBrightness':
+        final arguments = call.arguments as Map;
+        if (sessionId == null) throw PlatformException(code: 'NOT_WATCHING');
+        if (arguments['sessionId'] != sessionId) {
+          throw PlatformException(code: 'STALE_WATCHING');
+        }
+        brightness = arguments['brightness'] as double;
+      case 'endWatching':
+        if (call.arguments == sessionId) {
+          brightness = _originalBrightness;
+          sessionId = null;
+        }
+    }
+    return null;
+  }
+}
+
 void main() {
   const controlsChannel = MethodChannel('com.pocketcinema.app/player_controls');
   const brightnessKey = Key('player-brightness-slider');
   late List<MethodCall> controlsCalls;
   late double initialBrightness;
   Object? beginFailure;
+  Future<Object?> Function(MethodCall)? controlsResponse;
 
   Iterable<MethodCall> callsTo(String method) =>
       controlsCalls.where((call) => call.method == method);
+
+  double brightnessArgument(MethodCall call) =>
+      (call.arguments as Map)['brightness'] as double;
 
   setUp(() {
     controlsCalls = [];
     initialBrightness = 0.65;
     beginFailure = null;
+    controlsResponse = null;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(controlsChannel, (call) async {
           controlsCalls.add(call);
+          final response = controlsResponse;
+          if (response != null) return response(call);
           if (call.method == 'beginWatching') {
             final failure = beginFailure;
             if (failure != null) throw failure;
@@ -88,20 +131,23 @@ void main() {
     });
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
         home: Builder(
           builder: (context) => Scaffold(
-            body: TextButton(
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => CinemaPlayer(
-                    title: 'Movie',
-                    controller: controller,
-                    library: library,
-                    video: CatalogVideo(filesAvailableState.entries.first),
+            body: Center(
+              child: TextButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => CinemaPlayer(
+                      title: 'Movie',
+                      controller: controller,
+                      library: library,
+                      video: CatalogVideo(filesAvailableState.entries.first),
+                    ),
                   ),
                 ),
+                child: const Text('Open player'),
               ),
-              child: const Text('Open player'),
             ),
           ),
         ),
@@ -109,7 +155,7 @@ void main() {
     );
     await tester.tap(find.text('Open player'));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
     return controller;
   }
 
@@ -140,7 +186,10 @@ void main() {
       expect(adjusted, greaterThan(initialBrightness));
       expect(adjusted, inInclusiveRange(0.01, 1.0));
       expect(callsTo('setBrightness'), isNotEmpty);
-      expect(callsTo('setBrightness').last.arguments, adjusted);
+      expect(callsTo('setBrightness').last.arguments, {
+        'sessionId': callsTo('beginWatching').single.arguments,
+        'brightness': adjusted,
+      });
       expect(find.text('${(adjusted * 100).round()}%'), findsOneWidget);
       expect(callsTo('beginWatching'), hasLength(1));
       await close(tester);
@@ -218,6 +267,235 @@ void main() {
     await close(tester);
     expect(callsTo('endWatching'), hasLength(2));
   });
+
+  testWidgets(
+    'Reopening during the pop animation keeps the new player active',
+    (tester) async {
+      final native = _WatchingControls(initialBrightness);
+      controlsResponse = native.call;
+      final controller = await open(tester);
+      final firstSession = native.sessionId;
+
+      await tester.tap(find.byTooltip('Back to library'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 60));
+      expect(find.byType(CinemaPlayer, skipOffstage: false), findsOneWidget);
+      expect(find.text('Open player').hitTestable(), findsOneWidget);
+      expect(callsTo('endWatching'), hasLength(1));
+      expect(callsTo('endWatching').single.arguments, firstSession);
+
+      await tester.tap(find.text('Open player'));
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      expect(find.byType(CinemaPlayer), findsOneWidget);
+      expect(native.sessionId, isNotNull);
+      expect(native.sessionId, isNot(firstSession));
+      expect(native.brightness, initialBrightness);
+      expect(controller.playback.snapshot.isOpen, isTrue);
+      expect(callsTo('beginWatching'), hasLength(2));
+      expect(callsTo('endWatching'), hasLength(1));
+      expect(tester.takeException(), isNull);
+
+      tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.24);
+      await tester.pump();
+      expect(native.brightness, 0.24);
+      expect(callsTo('setBrightness'), hasLength(1));
+      expect(callsTo('beginWatching'), hasLength(2));
+
+      await tester.tap(find.byTooltip('Back to library'));
+      await tester.pumpAndSettle();
+      expect(native.sessionId, isNull);
+      expect(native.brightness, -1);
+      expect(callsTo('endWatching'), hasLength(2));
+      expect(controller.playback.snapshot.isOpen, isFalse);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets('A late recovery reply cannot release the replacement player', (
+    tester,
+  ) async {
+    final native = _WatchingControls(initialBrightness);
+    final recovery = Completer<double>();
+    controlsResponse = (call) async {
+      final response = await native.call(call);
+      if (call.method == 'beginWatching' &&
+          callsTo('beginWatching').length == 2) {
+        // Native begin has run; only its reply is delayed.
+        return recovery.future;
+      }
+      return response;
+    };
+    final controller = await open(tester);
+    final oldSession = native.sessionId;
+    native.sessionId = null;
+    native.brightness = -1;
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.2);
+    await tester.pump();
+    expect(callsTo('beginWatching'), hasLength(2));
+
+    await tester.tap(find.byTooltip('Back to library'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    await tester.tap(find.text('Open player'));
+    await tester.pump();
+    await tester.pumpAndSettle();
+    final replacementSession = native.sessionId;
+    expect(replacementSession, isNotNull);
+    expect(replacementSession, isNot(oldSession));
+
+    recovery.complete(initialBrightness);
+    await tester.pump();
+
+    expect(callsTo('endWatching'), hasLength(2));
+    expect(callsTo('endWatching').last.arguments, oldSession);
+    expect(native.sessionId, replacementSession);
+    expect(native.brightness, initialBrightness);
+    expect(controller.playback.snapshot.isOpen, isTrue);
+    expect(callsTo('setBrightness'), hasLength(1));
+    expect(tester.takeException(), isNull);
+    await close(tester);
+    expect(native.sessionId, isNull);
+  });
+
+  testWidgets('Brightness restores a lost native watching session', (
+    tester,
+  ) async {
+    var nativeWatching = false;
+    var nativeBrightness = initialBrightness;
+    controlsResponse = (call) async {
+      switch (call.method) {
+        case 'beginWatching':
+          nativeWatching = true;
+          return nativeBrightness;
+        case 'setBrightness':
+          if (!nativeWatching) throw PlatformException(code: 'NOT_WATCHING');
+          nativeBrightness = brightnessArgument(call);
+        case 'endWatching':
+          nativeWatching = false;
+      }
+      return null;
+    };
+    await open(tester);
+    nativeWatching = false;
+
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.24);
+    await tester.pump();
+
+    expect(callsTo('beginWatching'), hasLength(2));
+    expect(callsTo('setBrightness').map(brightnessArgument), [0.24, 0.24]);
+    expect(nativeBrightness, 0.24);
+    expect(tester.widget<Slider>(find.byKey(brightnessKey)).value, 0.24);
+    expect(tester.takeException(), isNull);
+    await close(tester);
+    expect(nativeWatching, isFalse);
+  });
+
+  testWidgets('The latest slider value wins while brightness recovery waits', (
+    tester,
+  ) async {
+    var nativeWatching = false;
+    var nativeBrightness = initialBrightness;
+    final recovery = Completer<double>();
+    controlsResponse = (call) async {
+      switch (call.method) {
+        case 'beginWatching':
+          final level = callsTo('beginWatching').length == 1
+              ? initialBrightness
+              : await recovery.future;
+          nativeWatching = true;
+          return level;
+        case 'setBrightness':
+          if (!nativeWatching) throw PlatformException(code: 'NOT_WATCHING');
+          nativeBrightness = brightnessArgument(call);
+        case 'endWatching':
+          nativeWatching = false;
+      }
+      return null;
+    };
+    await open(tester);
+    nativeWatching = false;
+
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.2);
+    await tester.pump();
+    expect(callsTo('beginWatching'), hasLength(2));
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.8);
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.3);
+    await tester.pump();
+    expect(tester.widget<Slider>(find.byKey(brightnessKey)).value, 0.3);
+
+    recovery.complete(initialBrightness);
+    await tester.pump();
+
+    expect(callsTo('setBrightness').map(brightnessArgument), [0.2, 0.3]);
+    expect(nativeBrightness, 0.3);
+    expect(tester.widget<Slider>(find.byKey(brightnessKey)).value, 0.3);
+    expect(tester.takeException(), isNull);
+    await close(tester);
+  });
+
+  testWidgets('Closing during recovery releases a delayed native begin', (
+    tester,
+  ) async {
+    var nativeWatching = false;
+    final recovery = Completer<double>();
+    controlsResponse = (call) async {
+      switch (call.method) {
+        case 'beginWatching':
+          final level = callsTo('beginWatching').length == 1
+              ? initialBrightness
+              : await recovery.future;
+          nativeWatching = true;
+          return level;
+        case 'setBrightness':
+          if (!nativeWatching) throw PlatformException(code: 'NOT_WATCHING');
+        case 'endWatching':
+          nativeWatching = false;
+      }
+      return null;
+    };
+    await open(tester);
+    nativeWatching = false;
+    tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.2);
+    await tester.pump();
+    expect(callsTo('beginWatching'), hasLength(2));
+
+    await close(tester);
+    expect(callsTo('endWatching'), hasLength(1));
+    recovery.complete(initialBrightness);
+    await tester.pump();
+
+    expect(callsTo('setBrightness'), hasLength(1));
+    expect(callsTo('endWatching'), hasLength(2));
+    expect(nativeWatching, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final code in ['CONTROLS_LOCKED', 'BRIGHTNESS_UNAVAILABLE']) {
+    testWidgets('$code rolls back brightness without restarting watching', (
+      tester,
+    ) async {
+      controlsResponse = (call) async {
+        if (call.method == 'beginWatching') return initialBrightness;
+        if (call.method == 'setBrightness') throw PlatformException(code: code);
+        return null;
+      };
+      await open(tester);
+
+      tester.widget<Slider>(find.byKey(brightnessKey)).onChanged!(0.2);
+      await tester.pump();
+
+      expect(callsTo('setBrightness'), hasLength(1));
+      expect(callsTo('beginWatching'), hasLength(1));
+      expect(
+        tester.widget<Slider>(find.byKey(brightnessKey)).value,
+        initialBrightness,
+      );
+      expect(tester.takeException(), isNull);
+      await close(tester);
+    });
+  }
 
   for (final failure in <Object>[
     MissingPluginException('Brightness bridge unavailable'),

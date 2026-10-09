@@ -38,12 +38,18 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   static const _controlsChannel = MethodChannel(
     'com.pocketcinema.app/player_controls',
   );
+  static int _nextWatchingSessionId = 0;
+  final int _watchingSessionId = ++_nextWatchingSessionId;
   bool visible = true, fullscreen = false, opening = true;
   bool locked = false;
   late bool _lockHardwareVolumeButtons;
   bool autoplayCancelled = false;
   double brightness = 0.5;
   bool brightnessAvailable = false;
+  double _confirmedBrightness = 0.5;
+  double? _pendingBrightness;
+  bool _applyingBrightness = false;
+  bool _watchingClosed = false;
   int activePointers = 0;
   Timer? controlsTimer;
   late CatalogVideo video = widget.video;
@@ -122,7 +128,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     await widget.controller.playSelected(
       startPosition: Duration(seconds: resume),
     );
-    if (!mounted) return;
+    if (!mounted || _watchingClosed) return;
     if (mounted) setState(() => opening = false);
   }
 
@@ -146,7 +152,8 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   void checkAutoplay() {
     final playback = widget.controller.playback.snapshot;
     final lifecycle = WidgetsBinding.instance.lifecycleState;
-    if (widget.controller.playbackBlocked ||
+    if (_watchingClosed ||
+        widget.controller.playbackBlocked ||
         opening ||
         autoplayCancelled ||
         autoplayVideo == null ||
@@ -172,6 +179,14 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
 
   @override
   void dispose() {
+    _releasePlayer();
+    super.dispose();
+  }
+
+  void _releasePlayer() {
+    if (_watchingClosed) return;
+    _watchingClosed = true;
+    _pendingBrightness = null;
     timer?.cancel();
     controlsTimer?.cancel();
     widget.library.removeListener(_lockPreferenceChanged);
@@ -181,7 +196,13 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     if (!opening) widget.library.record(video);
     unawaited(widget.library.persist());
     unawaited(widget.controller.closePlayer());
-    super.dispose();
+  }
+
+  void _playerPopped(bool didPop, Object? result) {
+    if (!didPop) return;
+    _releasePlayer();
+    // Detach the outgoing view before another player starts during its animation.
+    if (mounted) setState(() {});
   }
 
   Future<void> fullScreen() async {
@@ -192,7 +213,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
 
   void scheduleHide() {
     controlsTimer?.cancel();
-    if (locked || !visible || activePointers > 0) return;
+    if (_watchingClosed || locked || !visible || activePointers > 0) return;
     controlsTimer = Timer(const Duration(seconds: 4), () {
       if (!mounted || locked) return;
       // Do not dismiss controls while a track/speed sheet is in use.
@@ -231,10 +252,14 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
     try {
       final value = await _controlsChannel.invokeMethod<double>(
         'beginWatching',
+        _watchingSessionId,
       );
-      if (!mounted || value == null || !value.isFinite) return;
+      if (!mounted || _watchingClosed || value == null || !value.isFinite) {
+        return;
+      }
       setState(() {
         brightness = value.clamp(0.01, 1.0);
+        _confirmedBrightness = brightness;
         brightnessAvailable = true;
       });
     } on MissingPluginException {
@@ -245,24 +270,75 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
   }
 
   Future<void> setBrightness(double value) async {
-    if (locked || !brightnessAvailable) return;
-    final previous = brightness;
+    if (locked || !brightnessAvailable || _watchingClosed) return;
     setState(() => brightness = value);
+    _pendingBrightness = value;
+    if (_applyingBrightness) return;
+    _applyingBrightness = true;
     try {
-      await _controlsChannel.invokeMethod<void>('setBrightness', value);
-    } on MissingPluginException {
-      if (mounted) setState(() => brightnessAvailable = false);
-    } on PlatformException catch (error) {
-      if (mounted && brightness == value) {
-        setState(() => brightness = previous);
+      while (!_watchingClosed && _pendingBrightness != null) {
+        final requested = _pendingBrightness!;
+        _pendingBrightness = null;
+        try {
+          final applied = await _applyBrightness(requested);
+          if (applied == null) return;
+          _confirmedBrightness = applied;
+        } on MissingPluginException {
+          if (_watchingClosed) return;
+          setState(() => brightnessAvailable = false);
+          _pendingBrightness = null;
+        } on PlatformException catch (error) {
+          if (_watchingClosed) return;
+          if (_pendingBrightness == null) {
+            setState(() => brightness = _confirmedBrightness);
+          }
+          debugPrint('Could not adjust watching brightness: ${error.message}');
+        }
       }
-      debugPrint('Could not adjust watching brightness: ${error.message}');
+    } finally {
+      _applyingBrightness = false;
     }
+  }
+
+  Future<double?> _applyBrightness(double value) async {
+    try {
+      await _controlsChannel.invokeMethod<void>('setBrightness', {
+        'sessionId': _watchingSessionId,
+        'brightness': value,
+      });
+    } on PlatformException catch (error) {
+      if (error.code != 'NOT_WATCHING') rethrow;
+      if (_watchingClosed) return null;
+      final initial = await _controlsChannel.invokeMethod<double>(
+        'beginWatching',
+        _watchingSessionId,
+      );
+      if (_watchingClosed) {
+        // A delayed native begin must not leave a closed player holding brightness.
+        await endWatching();
+        return null;
+      }
+      if (initial == null || !initial.isFinite) {
+        throw PlatformException(code: 'BRIGHTNESS_UNAVAILABLE');
+      }
+      _confirmedBrightness = initial.clamp(0.01, 1.0);
+      // Keep the latest drag position while the native session is being restored.
+      value = _pendingBrightness ?? value;
+      _pendingBrightness = null;
+      await _controlsChannel.invokeMethod<void>('setBrightness', {
+        'sessionId': _watchingSessionId,
+        'brightness': value,
+      });
+    }
+    return _watchingClosed ? null : value;
   }
 
   Future<void> endWatching() async {
     try {
-      await _controlsChannel.invokeMethod<void>('endWatching');
+      await _controlsChannel.invokeMethod<void>(
+        'endWatching',
+        _watchingSessionId,
+      );
     } on MissingPluginException {
       // There is no native display override to release on this platform.
     } on PlatformException catch (error) {
@@ -294,7 +370,9 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: widget.controller,
+    animation: _watchingClosed
+        ? const AlwaysStoppedAnimation<double>(0)
+        : widget.controller,
     builder: (context, _) {
       final state = widget.controller.state;
       final playback = state.playbackSnapshot;
@@ -322,6 +400,7 @@ class _CinemaPlayerState extends State<CinemaPlayer> {
           playback.failure == null;
       return PopScope(
         canPop: !locked,
+        onPopInvokedWithResult: _playerPopped,
         child: Scaffold(
           backgroundColor: Colors.black,
           body: SafeArea(

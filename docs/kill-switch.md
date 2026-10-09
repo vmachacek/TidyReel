@@ -15,6 +15,10 @@ shared Wi-Fi network or an account.
    **Enable nearby control**.
 4. Allow Android's Bluetooth/Nearby devices permission and turn Bluetooth on.
 
+Library Settings ends with a screen-time breaks note and a phone-to-tablet
+Bluetooth graphic. The note explains setup, pausing and restoring viewing, the
+app-only scope, and offline recovery; it does not expose the controls.
+
 Kill switch controls are hidden from the app bar and Library Settings; the
 three-tap shortcut opens their sheet from the app title, including before a media
 folder is connected. One or two taps do nothing, and the tap count resets after

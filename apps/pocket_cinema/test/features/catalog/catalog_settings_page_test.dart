@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
+import 'package:pocket_cinema/features/catalog/catalog_metadata_settings.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 import 'package:pocket_cinema/features/catalog/catalog_settings_screen.dart';
+import 'package:pocket_cinema/features/kill_switch/kill_switch_note.dart';
 
 import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
@@ -81,6 +83,57 @@ void main() {
       },
     );
   }
+
+  testWidgets(
+    'screen-time note is the final settings content and Back stays reachable',
+    (tester) async {
+      await _openSettings(tester, const Size(320, 480));
+      final back = find.byKey(_backKey);
+      final backRect = tester.getRect(back);
+      final note = find.byKey(const Key('kill-switch-info'));
+      final recovery = find.byKey(const Key('kill-switch-info-recovery'));
+      final settingsContent = tester.widget<Column>(
+        find
+            .descendant(
+              of: find.byKey(_scrollKey),
+              matching: find.byType(Column),
+            )
+            .first,
+      );
+      expect(settingsContent.children.last, isA<KillSwitchNote>());
+      expect(
+        tester.getRect(note).top,
+        greaterThanOrEqualTo(
+          tester.getRect(find.byType(CatalogMetadataSettings)).bottom,
+        ),
+      );
+      expect(
+        tester.getRect(note).top,
+        greaterThan(tester.getRect(find.text('Metadata credits')).bottom),
+      );
+
+      await tester.scrollUntilVisible(
+        recovery,
+        200,
+        maxScrolls: 40,
+        scrollable: _settingsScrollable(),
+      );
+      final scrollState = tester.state<ScrollableState>(_settingsScrollable());
+      scrollState.position.jumpTo(scrollState.position.maxScrollExtent);
+      await tester.pumpAndSettle();
+      expect(recovery.hitTestable(), findsOneWidget);
+      expect(tester.getRect(note).bottom, tester.getRect(recovery).bottom);
+      expect(back.hitTestable(), findsOneWidget);
+      expect(tester.getRect(back), backRect);
+      expect(tester.takeException(), isNull);
+
+      await tester.tap(back);
+      await settleCatalog(tester);
+      expect(find.byType(CatalogSettingsScreen), findsNothing);
+      expect(find.byType(CatalogScreen).hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
   testWidgets(
     'settings back button stays reachable with a small-screen keyboard',

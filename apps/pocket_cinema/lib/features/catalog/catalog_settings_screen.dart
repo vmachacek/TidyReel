@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../kill_switch/kill_switch_note.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
 
@@ -102,6 +103,8 @@ class CatalogSettingsScreen extends StatelessWidget {
                   ),
                   const Divider(height: 32),
                   CatalogMetadataSettings(library: library),
+                  const Divider(height: 32),
+                  const KillSwitchNote(),
                 ],
               ),
             ),

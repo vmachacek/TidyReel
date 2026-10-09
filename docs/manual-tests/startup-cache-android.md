@@ -42,7 +42,10 @@ media folder. An automatic refresh becomes due six hours after the last
 successful scan, including across restarts. Missing or future completion times
 are treated as stale. Missing, corrupt, incompatible, or differently scoped
 cache data still triggers the first scan immediately after folder access is
-checked. **Rescan library** always bypasses the automatic schedule.
+checked. **Rescan library**, available in Library Settings and the catalog
+toolbar, always bypasses the automatic schedule. The Settings button closes
+the sheet and starts a manual scan immediately; it is disabled during a manual
+scan and updates when that scan ends.
 
 Automatic scans wait for local preferences and catalog grouping, then a
 15-second presentation grace period and five seconds without touch, scrolling,

@@ -834,6 +834,25 @@ class _CatalogScreenState extends State<CatalogScreen>
                 icon: const Icon(Icons.folder_open),
                 label: const Text('Change media folder'),
               ),
+              const SizedBox(height: 8),
+              ListenableBuilder(
+                listenable: widget.controller,
+                builder: (context, _) {
+                  final state = widget.controller.state;
+                  final root = state.root;
+                  return OutlinedButton.icon(
+                    key: const Key('settings-rescan-library'),
+                    onPressed: state.canRescan && root != null
+                        ? () {
+                            Navigator.of(sheetContext).pop();
+                            unawaited(widget.controller.scan(root));
+                          }
+                        : null,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Rescan library'),
+                  );
+                },
+              ),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);

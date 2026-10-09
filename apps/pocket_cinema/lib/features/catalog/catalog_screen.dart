@@ -213,9 +213,9 @@ class _CatalogScreenState extends State<CatalogScreen>
             title: const AppBrand(),
             actions: [
               IconButton(
-                onPressed: diagnostics,
-                tooltip: 'Diagnostics',
-                icon: const Icon(Icons.bug_report_outlined),
+                onPressed: settings,
+                tooltip: 'Library settings',
+                icon: const Icon(Icons.tune),
               ),
             ],
           ),
@@ -393,13 +393,6 @@ class _CatalogScreenState extends State<CatalogScreen>
             alignment: Alignment.centerLeft,
             child: AppBrand(),
           ),
-          actions: [
-            TextButton.icon(
-              onPressed: diagnostics,
-              icon: const Icon(Icons.bug_report_outlined),
-              label: const Text('Diagnostics'),
-            ),
-          ],
         ),
         bottomNavigationBar: MediaQuery.sizeOf(context).width < 850
             ? NavigationBar(

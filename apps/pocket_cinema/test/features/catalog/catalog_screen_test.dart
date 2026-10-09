@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_cinema/app/app_theme.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
+import 'package:pocket_cinema/features/catalog/catalog_settings_screen.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_screen.dart';
 import 'package:pocket_cinema/features/risk_spike/risk_spike_state.dart';
 import 'package:pocket_cinema/l10n/app_localizations.dart';
@@ -49,33 +50,42 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Empty Home shows folder connection and links to diagnostics', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(390, 844));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(app(const RiskSpikeState()));
-    await settleCatalog(tester);
-    expect(find.text('Connect media folder'), findsOneWidget);
-    expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(find.textContaining('Astro Kid'), findsNothing);
-    expect(find.textContaining('SpongeBob'), findsNothing);
-    await tester.tap(find.byTooltip('Diagnostics'));
-    await settleCatalog(tester);
-    expect(find.byType(RiskSpikeScreen), findsOneWidget);
-    await tester.tap(find.byKey(const Key('diagnostics-home-button')));
-    await settleCatalog(tester);
-    expect(find.text('Connect media folder'), findsOneWidget);
-    expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
-    expect(find.byType(NavigationBar), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  testWidgets(
+    'Empty Home shows folder connection and settings opens diagnostics',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(app(const RiskSpikeState()));
+      await settleCatalog(tester);
+      expect(find.text('Connect media folder'), findsOneWidget);
+      expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.textContaining('Astro Kid'), findsNothing);
+      expect(find.textContaining('SpongeBob'), findsNothing);
+      expect(find.byTooltip('Diagnostics'), findsNothing);
+      expect(find.text('Diagnostics'), findsNothing);
+      await tester.tap(find.byTooltip('Library settings'));
+      await settleCatalog(tester);
+      expect(find.byType(CatalogSettingsScreen), findsOneWidget);
+      await tester.tap(find.text('Open Diagnostics'));
+      await settleCatalog(tester);
+      expect(find.byType(RiskSpikeScreen), findsOneWidget);
+      await tester.tap(find.byKey(const Key('diagnostics-home-button')));
+      await settleCatalog(tester);
+      expect(find.text('Connect media folder'), findsOneWidget);
+      expect(find.byKey(const Key('folder-onboarding')), findsOneWidget);
+      expect(find.byType(NavigationBar), findsNothing);
+      expect(find.byTooltip('Diagnostics'), findsNothing);
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('Home shows only scanned videos and search filters them', (
     tester,
   ) async {
     await tester.pumpWidget(app(fixtures.filesAvailableState));
     await settleCatalog(tester);
+    expect(find.text('Diagnostics'), findsNothing);
+    expect(find.byTooltip('Diagnostics'), findsNothing);
     await tester.scrollUntilVisible(
       find.byType(PosterCard),
       250,

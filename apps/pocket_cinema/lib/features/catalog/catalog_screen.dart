@@ -13,6 +13,7 @@ import 'background_refresh_scheduler.dart';
 import 'catalog_artwork_picker.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
+import 'catalog_settings_screen.dart';
 import 'catalog_skeleton.dart';
 import 'cinema_player.dart';
 import 'jukebox_carousel.dart';
@@ -798,89 +799,10 @@ class _CatalogScreenState extends State<CatalogScreen>
       ),
     ),
   );
-  void settings() => showModalBottomSheet<void>(
-    context: context,
-    isScrollControlled: true,
-    builder: (sheetContext) => SafeArea(
-      child: Padding(
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.viewInsetsOf(sheetContext).bottom,
-        ),
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Library Settings',
-                style: TextStyle(fontSize: 22, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(height: 16),
-              Text(
-                widget.controller.state.root?.displayName ??
-                    'No folder connected',
-              ),
-              const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.pop(context);
-                  unawaited(connect());
-                },
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Change media folder'),
-              ),
-              const SizedBox(height: 8),
-              ListenableBuilder(
-                listenable: widget.controller,
-                builder: (context, _) {
-                  final state = widget.controller.state;
-                  final root = state.root;
-                  return OutlinedButton.icon(
-                    key: const Key('settings-rescan-library'),
-                    onPressed: state.canRescan && root != null
-                        ? () {
-                            Navigator.of(sheetContext).pop();
-                            unawaited(widget.controller.scan(root));
-                          }
-                        : null,
-                    icon: const Icon(Icons.refresh),
-                    label: const Text('Rescan library'),
-                  );
-                },
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  diagnostics();
-                },
-                child: const Text('Open Diagnostics'),
-              ),
-              const Divider(height: 32),
-              const Text(
-                'Playback',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
-              ),
-              ListenableBuilder(
-                listenable: library,
-                builder: (context, _) => SwitchListTile.adaptive(
-                  key: const Key('lock-hardware-volume-buttons'),
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Lock hardware volume buttons'),
-                  subtitle: const Text(
-                    'When player controls are locked, also block the physical volume buttons. Turn off to keep volume buttons available.',
-                  ),
-                  value: library.lockHardwareVolumeButtons,
-                  onChanged: (value) =>
-                      unawaited(library.setLockHardwareVolumeButtons(value)),
-                ),
-              ),
-              const Divider(height: 32),
-              CatalogMetadataSettings(library: library),
-            ],
-          ),
-        ),
-      ),
+  void settings() => Navigator.of(context).push<void>(
+    MaterialPageRoute(
+      builder: (_) =>
+          CatalogSettingsScreen(library: library, openDiagnostics: diagnostics),
     ),
   );
 }

@@ -114,7 +114,7 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
 
-        // The open Settings sheet must react to completion without reopening.
+        // The open Settings page must react to completion without reopening.
         expect(find.text('Library Settings'), findsOneWidget);
         expect(controller.state.canCancel, isFalse);
         expect(tester.widget<OutlinedButton>(button).onPressed, isNotNull);

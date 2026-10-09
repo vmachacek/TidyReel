@@ -43,9 +43,13 @@ successful scan, including across restarts. Missing or future completion times
 are treated as stale. Missing, corrupt, incompatible, or differently scoped
 cache data still triggers the first scan immediately after folder access is
 checked. **Rescan library**, available in Library Settings and the catalog
-toolbar, always bypasses the automatic schedule. The Settings button closes
-the sheet and starts a manual scan immediately; it is disabled during a manual
+toolbar, always bypasses the automatic schedule. The Settings button returns
+to the library and starts a manual scan immediately; it is disabled during a manual
 scan and updates when that scan ends.
+
+Library Settings opens as a separate page with a fixed Back button in the app
+bar. Settings content scrolls independently, and the page resizes for the
+keyboard so Back remains available on small and short screens.
 
 Automatic scans wait for local preferences and catalog grouping, then a
 15-second presentation grace period and five seconds without touch, scrolling,

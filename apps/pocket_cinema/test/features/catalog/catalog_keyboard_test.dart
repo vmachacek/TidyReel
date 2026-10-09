@@ -237,7 +237,16 @@ void main() {
     await tester.tap(find.text('Settings'));
     await settleCatalog(tester);
     final input = find.byKey(const Key('tmdb-token'));
-    await tester.ensureVisible(input);
+    await tester.scrollUntilVisible(
+      input,
+      200,
+      scrollable: find
+          .descendant(
+            of: find.byKey(const Key('library-settings-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first,
+    );
     await tester.pumpAndSettle();
     await tester.tap(input);
     await tester.pump();

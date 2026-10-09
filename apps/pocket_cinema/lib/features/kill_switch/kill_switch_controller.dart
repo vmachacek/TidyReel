@@ -101,9 +101,7 @@ class KillSwitchController extends ChangeNotifier with WidgetsBindingObserver {
     if (_disposed || _busy) return;
     if (_enabled && _isController && _active && !isController) {
       _setError(
-        StateError(
-          'Turn Kill switch mode off before changing this phone’s role.',
-        ),
+        StateError('Turn off Pause viewing before changing this phone’s role.'),
       );
       return;
     }
@@ -145,9 +143,7 @@ class KillSwitchController extends ChangeNotifier with WidgetsBindingObserver {
     if (_disposed || _busy) return;
     if (_enabled && _isController && _active) {
       _setError(
-        StateError(
-          'Turn Kill switch mode off before disabling nearby control.',
-        ),
+        StateError('Turn off Pause viewing before disabling nearby control.'),
       );
       return;
     }

@@ -7,7 +7,7 @@ canonical titles and episode names while retaining uncertain local evidence.
 
 ## What works
 
-- Use an unpaired [Bluetooth kill switch](docs/kill-switch.md) on an Android phone
+- Use [Screen-time pause over Bluetooth](docs/kill-switch.md) on an Android phone
   to pause nearby Pocket Cinema tablets behind a continuous loading screen.
 
 - Choose a media folder with Android's Storage Access Framework.

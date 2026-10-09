@@ -129,7 +129,7 @@ class _KillSwitchGateState extends State<KillSwitchGate> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               const Text(
-                                'Restore this tablet and turn off nearby control. You can enable it again in Kill switch settings.',
+                                'Restore this tablet and turn off nearby control. You can enable it again in Screen-time pause settings.',
                               ),
                               if (_error != null) ...[
                                 const SizedBox(height: 16),

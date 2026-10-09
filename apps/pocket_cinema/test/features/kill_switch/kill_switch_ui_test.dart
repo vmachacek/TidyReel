@@ -94,11 +94,11 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('kill switch is hidden until the third brand tap', (
+  testWidgets('screen-time pause is hidden until the third brand tap', (
     tester,
   ) async {
     await open(tester, paired: false, active: false);
-    expect(find.byTooltip('Kill switch'), findsNothing);
+    expect(find.byTooltip('Screen-time pause'), findsNothing);
     expect(find.byIcon(Icons.power_settings_new), findsNothing);
     expect(find.byType(KillSwitchSettings), findsNothing);
 
@@ -149,19 +149,19 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('library settings keep kill switch controls hidden', (
+  testWidgets('library settings keep screen-time pause controls hidden', (
     tester,
   ) async {
     await open(tester, active: false, state: fixtures.filesAvailableState);
     await settleCatalog(tester);
-    expect(find.byTooltip('Kill switch'), findsNothing);
+    expect(find.byTooltip('Screen-time pause'), findsNothing);
     expect(find.byIcon(Icons.power_settings_new), findsNothing);
     await tester.tap(find.byTooltip('Library settings'));
     await tester.pumpAndSettle();
     expect(find.text('Library Settings'), findsOneWidget);
     expect(find.text('Rescan library'), findsOneWidget);
     expect(find.byType(KillSwitchSettings), findsNothing);
-    expect(find.text('Kill switch'), findsNothing);
+    expect(find.text('Screen-time pause'), findsNothing);
     expect(find.text('Disable nearby control'), findsNothing);
     Navigator.of(tester.element(find.text('Library Settings'))).pop();
     await tester.pumpAndSettle();
@@ -264,7 +264,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(control.active, isTrue);
       expect(find.text('Loading…'), findsNothing);
-      expect(find.text('Kill switch mode'), findsOneWidget);
+      expect(find.text('Pause viewing'), findsOneWidget);
       await tester.tap(find.byKey(const Key('kill-switch-mode')));
       await tester.pumpAndSettle();
       expect(control.active, isFalse);

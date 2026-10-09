@@ -17,7 +17,7 @@ class KillSwitchNote extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'The optional kill switch helps parents curb kids’ viewing time by pausing Pocket Cinema on nearby tablets from their phone.',
+          'Screen-time pause helps parents curb kids’ viewing time by pausing Pocket Cinema on nearby tablets from their phone.',
         ),
         const SizedBox(height: 16),
         Semantics(
@@ -44,7 +44,7 @@ class KillSwitchNote extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         const Text(
-          'Turn on Kill switch mode on your phone to pause videos and show Loading… on nearby enabled tablets. Your phone stays usable. Turn the mode off to restore the tablets; videos stay paused until Play is pressed.',
+          'Turn on Pause viewing on your phone to pause videos and show Loading… on nearby enabled tablets. Your phone stays usable. Turn it off to restore the tablets; videos stay paused until Play is pressed.',
         ),
         const SizedBox(height: 12),
         const Text(
@@ -76,7 +76,7 @@ class _SignalGraphic extends StatelessWidget {
       final phone = _Device(
         icon: Icons.smartphone,
         label: 'Parent’s phone',
-        status: 'Pause mode on',
+        status: 'Pause viewing on',
         color: color,
       );
       final tablet = _Device(

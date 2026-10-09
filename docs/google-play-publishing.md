@@ -211,7 +211,7 @@ access; keep credentials in the console's private review instructions, not Git.
    choose **My phone** and **Enable phone control**. On the tablet, choose
    **Tablet** and **Enable nearby control**. Allow permissions and enable
    Bluetooth; Android 10-11 also needs the Location setting on for discovery.
-5. Start playback on the tablet, turn **Kill switch mode** on at the phone, and
+5. Start playback on the tablet, turn **Pause viewing** on at the phone, and
    confirm Loading with paused audio. Turn it off and confirm playback remains
    paused. If the phone is unavailable, **hold the tablet's Loading spinner for
    five seconds**, then select **Restore tablet**; this disables nearby control.

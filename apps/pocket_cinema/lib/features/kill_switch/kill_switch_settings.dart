@@ -45,12 +45,12 @@ class _KillSwitchSettingsState extends State<KillSwitchSettings> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           const Text(
-            'Kill switch',
+            'Screen-time pause',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Use Bluetooth to make nearby Pocket Cinema apps appear stuck on Loading. No Wi-Fi or pairing needed.',
+            'Pause Pocket Cinema on nearby tablets when it’s time for a screen-time break. Uses Bluetooth, with no Wi-Fi or pairing needed.',
           ),
           const SizedBox(height: 16),
           if (!control.enabled) ...[
@@ -74,9 +74,7 @@ class _KillSwitchSettingsState extends State<KillSwitchSettings> {
             ),
             const SizedBox(height: 12),
             Text(
-              _phone
-                  ? 'Control nearby tablets from this phone.'
-                  : 'Allow this tablet to receive nearby kill switch signals.',
+              _phone ? 'Control nearby tablets from this phone.' : 'Allow this tablet to receive viewing pauses from a nearby phone.',
             ),
             const SizedBox(height: 12),
             FilledButton.icon(
@@ -96,7 +94,7 @@ class _KillSwitchSettingsState extends State<KillSwitchSettings> {
               SwitchListTile.adaptive(
                 key: const Key('kill-switch-mode'),
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Kill switch mode'),
+                title: const Text('Pause viewing'),
                 subtitle: const Text(
                   'Your phone stays usable. Nearby enabled tablets show Loading and pause their video.',
                 ),
@@ -115,7 +113,7 @@ class _KillSwitchSettingsState extends State<KillSwitchSettings> {
               ),
               const SizedBox(height: 8),
               const Text(
-                'Turn the mode off here to restore the tablets. Bluetooth range depends on distance and walls.',
+                'Turn off Pause viewing here to restore the tablets. Bluetooth range depends on distance and walls.',
               ),
             ] else ...[
               Text(

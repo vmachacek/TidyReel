@@ -46,7 +46,7 @@ void main() {
       expect(control.broadcasting, isTrue);
       await control.disable();
       expect(control.enabled, isTrue);
-      expect(control.error, contains('Turn Kill switch mode off'));
+      expect(control.error, contains('Turn off Pause viewing before'));
       await control.setActive(false);
       expect(radio.broadcasts.last, isFalse);
       await control.disable();

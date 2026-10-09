@@ -1,4 +1,4 @@
-# Bluetooth kill switch
+# Screen-time pause
 
 Pocket Cinema can use an unpaired Bluetooth Low Energy broadcast to make nearby
 instances of the app show a continuous **Loading…** screen. It works without a
@@ -19,7 +19,7 @@ Library Settings ends with a screen-time breaks note and a phone-to-tablet
 Bluetooth graphic. The note explains setup, pausing and restoring viewing, the
 app-only scope, and offline recovery; it does not expose the controls.
 
-Kill switch controls are hidden from the app bar and Library Settings; the
+Screen-time pause controls are hidden from the app bar and Library Settings; the
 three-tap shortcut opens their sheet from the app title, including before a media
 folder is connected. One or two taps do nothing, and the tap count resets after
 two seconds.
@@ -30,11 +30,11 @@ does not use the scans to determine location.
 
 ## Use
 
-Turn on **Kill switch mode** on the phone. Nearby enabled tablets cover the
+Turn on **Pause viewing** on the phone. Nearby enabled tablets cover the
 library, player, and open dialogs with Loading, block touch and Back navigation,
 and pause playback at its current position. The phone remains usable.
 
-Turn the mode off on the phone to restore the tablets. Playback stays paused
+Turn off **Pause viewing** on the phone to restore the tablets. Playback stays paused
 until someone explicitly presses Play. The phone continues broadcasting its
 current mode while the app remains alive, including while it is in the
 background. After Android stops the phone's process, reopen the app to resume

@@ -84,10 +84,7 @@ void main() {
       await _surface(tester, surface);
       await _show(tester, [files.file('Movies/Alpha (2016).mp4')]);
 
-      expect(
-        find.byType(NavigationBar),
-        surface.width < 850 ? findsOneWidget : findsNothing,
-      );
+      expect(find.byType(NavigationBar), findsOneWidget);
       expect(_viewSwitch(tester).selected, {CatalogHomeView.carousel});
       await _reveal(tester, find.byType(JukeboxHero), delta: 250);
       expect(find.byType(JukeboxHero), findsOneWidget);

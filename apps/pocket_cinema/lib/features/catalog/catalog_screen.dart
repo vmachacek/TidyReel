@@ -468,35 +468,27 @@ class _CatalogScreenState extends State<CatalogScreen>
           : null;
       return Scaffold(
         appBar: catalogAppBar(context),
-        bottomNavigationBar: MediaQuery.sizeOf(context).width < 850
-            ? NavigationBar(
-                selectedIndex: destination,
-                onDestinationSelected: (i) {
-                  if (i < 2) setState(() => destination = i);
-                  if (i == 2) activity();
-                  if (i == 3) settings();
-                },
-                destinations: const [
-                  NavigationDestination(
-                    icon: Icon(Icons.home_outlined),
-                    selectedIcon: Icon(Icons.home),
-                    label: 'Home',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.video_library_outlined),
-                    label: 'Library',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.sync),
-                    label: 'Activity',
-                  ),
-                  NavigationDestination(
-                    icon: Icon(Icons.tune),
-                    label: 'Settings',
-                  ),
-                ],
-              )
-            : null,
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: destination,
+          onDestinationSelected: (i) {
+            if (i < 2) setState(() => destination = i);
+            if (i == 2) activity();
+            if (i == 3) settings();
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.video_library_outlined),
+              label: 'Library',
+            ),
+            NavigationDestination(icon: Icon(Icons.sync), label: 'Activity'),
+            NavigationDestination(icon: Icon(Icons.tune), label: 'Settings'),
+          ],
+        ),
         body: Semantics(
           key: const Key('catalog-body'),
           container: true,

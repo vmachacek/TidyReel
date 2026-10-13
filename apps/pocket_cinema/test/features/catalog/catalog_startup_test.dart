@@ -495,9 +495,7 @@ void main() {
       await _waitForLocalDiscovery(tester);
       final toolbar = tester.getRect(find.byKey(const Key('home-view-switch')));
       final appBar = tester.getRect(find.byType(AppBar));
-      final navigation = size.width < 850
-          ? tester.getRect(find.byType(NavigationBar))
-          : null;
+      final navigation = tester.getRect(find.byType(NavigationBar));
       final hero = tester.getRect(find.byType(CatalogHeroSkeleton));
       final status = tester.getRect(find.byKey(_status));
       final sort = await _contentRect(tester, find.byKey(_sort));
@@ -537,9 +535,7 @@ void main() {
         tester.getRect(find.byKey(const Key('home-view-switch'))),
         toolbar,
       );
-      if (navigation != null) {
-        expect(tester.getRect(find.byType(NavigationBar)), navigation);
-      }
+      expect(tester.getRect(find.byType(NavigationBar)), navigation);
       expect(tester.takeException(), isNull);
     });
 

@@ -33,7 +33,91 @@ Finder get catalogScrollable => find
     )
     .first;
 
+Finder navigationLabel(String label) =>
+    find.descendant(of: find.byType(NavigationBar), matching: find.text(label));
+
 void main() {
+  for (final size in [
+    const Size(849, 600),
+    const Size(850, 600),
+    const Size(1280, 800),
+  ]) {
+    testWidgets('bottom navigation stays visible and works at $size', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.resetDevicePixelRatio);
+      addTearDown(tester.view.resetPhysicalSize);
+      await tester.pumpWidget(app(fixtures.filesAvailableState));
+      await settleCatalog(tester);
+
+      final navigation = find.byType(NavigationBar);
+      expect(navigation, findsOneWidget);
+      final rectangle = tester.getRect(navigation);
+      expect(rectangle.left, 0);
+      expect(rectangle.right, size.width);
+      expect(rectangle.bottom, size.height);
+      for (final label in ['Home', 'Library', 'Activity', 'Settings']) {
+        expect(navigationLabel(label).hitTestable(), findsOneWidget);
+      }
+
+      await tester.tap(navigationLabel('Library'));
+      await settleCatalog(tester);
+      expect(tester.widget<NavigationBar>(navigation).selectedIndex, 1);
+      await tester.tap(navigationLabel('Home'));
+      await settleCatalog(tester);
+      expect(tester.widget<NavigationBar>(navigation).selectedIndex, 0);
+
+      await tester.tap(navigationLabel('Activity'));
+      await settleCatalog(tester);
+      expect(find.text('Library Activity'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await settleCatalog(tester);
+      expect(find.text('Library Activity'), findsNothing);
+
+      await tester.tap(navigationLabel('Settings'));
+      await settleCatalog(tester);
+      expect(find.byType(CatalogSettingsScreen), findsOneWidget);
+      await tester.tap(find.byKey(const Key('library-settings-back')));
+      await settleCatalog(tester);
+      expect(navigation, findsOneWidget);
+      expect(tester.widget<NavigationBar>(navigation).selectedIndex, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('bottom navigation retains Library selection after rotation', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 1280);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetPhysicalSize);
+    await tester.pumpWidget(app(fixtures.filesAvailableState));
+    await settleCatalog(tester);
+    await tester.tap(navigationLabel('Library'));
+    await settleCatalog(tester);
+
+    for (final size in [const Size(1280, 800), const Size(800, 1280)]) {
+      tester.view.physicalSize = size;
+      await settleCatalog(tester);
+      final navigation = find.byType(NavigationBar);
+      expect(navigation, findsOneWidget);
+      expect(tester.widget<NavigationBar>(navigation).selectedIndex, 1);
+      expect(tester.getRect(navigation).bottom, size.height);
+      expect(navigationLabel('Home').hitTestable(), findsOneWidget);
+      expect(navigationLabel('Library').hitTestable(), findsOneWidget);
+    }
+    await tester.tap(navigationLabel('Home'));
+    await settleCatalog(tester);
+    expect(
+      tester.widget<NavigationBar>(find.byType(NavigationBar)).selectedIndex,
+      0,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [390.0, 600.0, 1200.0]) {
     testWidgets('catalog header keeps filters beside the logo at $width', (
       tester,

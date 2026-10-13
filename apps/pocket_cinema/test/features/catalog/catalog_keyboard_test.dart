@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pocket_cinema/app/app_theme.dart';
 import 'package:pocket_cinema/features/catalog/catalog_discovery_worker.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
 import 'package:pocket_cinema/features/catalog/catalog_metadata.dart';
@@ -113,6 +114,7 @@ Future<CatalogLibrary> _openReview(
   );
   await tester.pumpWidget(
     MaterialApp(
+      theme: AppTheme.dark,
       home: Scaffold(
         body: Builder(
           builder: (context) => TextButton(
@@ -165,8 +167,11 @@ void main() {
       (tester) async {
         await _surface(tester, scenario.size);
         final source = _MetadataSource();
-        await _openReview(tester, source);
+        final library = await _openReview(tester, source);
         final input = find.byType(TextField);
+        final submit = find.byKey(
+          ValueKey('review-match-submit-${library.localTitles.single.id}'),
+        );
         await tester.ensureVisible(input);
         await tester.pumpAndSettle();
         await tester.tap(input);
@@ -175,10 +180,12 @@ void main() {
 
         await _keyboard(tester, scenario.keyboardHeights.first);
         _expectVisibleAboveKeyboard(tester, input);
+        _expectVisibleAboveKeyboard(tester, submit);
         await tester.enterText(input, 'Another movie');
         for (final height in scenario.keyboardHeights.skip(1)) {
           await _keyboard(tester, height);
           _expectVisibleAboveKeyboard(tester, input);
+          _expectVisibleAboveKeyboard(tester, submit);
           expect(_editable(tester, input).focusNode.hasFocus, isTrue);
           expect(_editable(tester, input).controller.text, 'Another movie');
         }
@@ -188,6 +195,17 @@ void main() {
         await tester.pumpAndSettle();
         expect(source.searches, ['Another movie']);
         expect(_editable(tester, input).controller.text, 'Another movie');
+
+        await tester.enterText(input, 'Search by button');
+        await _keyboard(tester, scenario.keyboardHeights.first);
+        _expectVisibleAboveKeyboard(tester, input);
+        _expectVisibleAboveKeyboard(tester, submit);
+        expect(tester.widget<FilledButton>(submit).onPressed, isNotNull);
+        await tester.tap(submit);
+        await tester.pumpAndSettle();
+        expect(source.searches, ['Another movie', 'Search by button']);
+        expect(_editable(tester, input).controller.text, 'Search by button');
+        expect(_editable(tester, input).focusNode.hasFocus, isFalse);
         expect(tester.takeException(), isNull);
       },
     );
@@ -201,6 +219,9 @@ void main() {
     final library = await _openReview(tester, source, localCount: 5);
     final input = find.byKey(
       ValueKey('review-match-search-${library.localTitles.last.id}'),
+    );
+    final submit = find.byKey(
+      ValueKey('review-match-submit-${library.localTitles.last.id}'),
     );
     await tester.scrollUntilVisible(
       input,
@@ -218,14 +239,18 @@ void main() {
 
     await _keyboard(tester, 320);
     _expectVisibleAboveKeyboard(tester, input);
+    _expectVisibleAboveKeyboard(tester, submit);
     await tester.enterText(input, 'Last alias');
     await _keyboard(tester, 380);
     _expectVisibleAboveKeyboard(tester, input);
+    _expectVisibleAboveKeyboard(tester, submit);
     expect(_editable(tester, input).focusNode.hasFocus, isTrue);
     expect(_editable(tester, input).controller.text, 'Last alias');
-    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.tap(submit);
     await tester.pumpAndSettle();
     expect(source.searches, ['Last alias']);
+    expect(_editable(tester, input).controller.text, 'Last alias');
+    expect(_editable(tester, input).focusNode.hasFocus, isFalse);
   });
 
   testWidgets('settings token stays visible when the keyboard opens', (

@@ -43,11 +43,13 @@ class TmdbCatalogMetadataSource
   @override
   Future<List<CatalogArtworkCandidate>> artwork({
     required String providerId,
+    required CatalogMediaKind kind,
   }) async {
-    _validateShowId(providerId);
+    _validateTitleId(providerId, kind);
     // Omitting language returns all artwork, including text-free images. Do
     // not cache this request: opening or refreshing the picker re-fetches it.
-    final json = await _getJson('/3/tv/$providerId/images', const {});
+    final mediaType = kind == CatalogMediaKind.movie ? 'movie' : 'tv';
+    final json = await _getJson('/3/$mediaType/$providerId/images', const {});
     if (_positiveInt(json['id']).toString() != providerId) {
       throw _invalidResponse;
     }
@@ -137,12 +139,16 @@ class TmdbCatalogMetadataSource
     }
   }
 
-  static void _validateShowId(String providerId) {
+  static void _validateTitleId(String providerId, CatalogMediaKind kind) {
     final numericId = int.tryParse(providerId);
     if (!RegExp(r'^[1-9]\d*$').hasMatch(providerId) ||
         numericId == null ||
         numericId > 2147483647) {
-      throw const CatalogMetadataException('The selected show is invalid.');
+      throw CatalogMetadataException(
+        kind == CatalogMediaKind.movie
+            ? 'The selected movie is invalid.'
+            : 'The selected show is invalid.',
+      );
     }
   }
 

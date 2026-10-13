@@ -23,24 +23,31 @@ and the device Keystore round-trip require validation with a user-provided token
 
 Title searches and release/first-air years are sent to TMDB. Episode requests
 use provider identifiers and season numbers; artwork requests use the matched
-show identifier. Image previews and selected downloads come from TMDB's image
-service. Video contents, storage URIs, and full paths are excluded from requests.
+movie or show identifier. Image previews and selected downloads come from TMDB's
+image service. Video contents, storage URIs, and full paths are excluded from
+requests.
 
-## Refresh TV artwork
+## Refresh movie and TV artwork
 
-1. Open a TV show's details and select **Refresh artwork**.
+1. Open a movie or TV show's details and select **Refresh artwork**.
 2. Choose **Poster** or **Backdrop**, then select an image from the gallery to
    compare it with the current artwork.
 3. Select **Use selected** to download and save the image, or **Keep current**
    to leave the current artwork in place. **Refresh again** requests a fresh
    list of images from TMDB.
 
-TMDB must be enabled, and the show must have a title match. The picker offers
-**Review match** for an unidentified show. Posters and backdrops are chosen
-separately and apply across the show's locally available seasons and episodes.
+TMDB must be enabled, and the title must have a match to use online images. The
+picker offers **Review match** for an unidentified title. Posters and backdrops
+are chosen separately. TV artwork applies across the show's locally available
+seasons and episodes.
 Images are saved in private app storage and remain available offline after a
 restart. The media folder and its existing images stay untouched. A download or
 save failure retains the previous choice.
+
+Choose **Movie screenshot** or **S01E01 screenshot** to capture artwork from
+local video without TMDB. Move the timeline slider, preview the frame, and select
+**Use screenshot** to save it as a poster or backdrop. TV screenshots require
+the first episode of season one to be in the library.
 
 ## Recognition and review
 

@@ -21,10 +21,16 @@ const backdrop = CatalogArtworkCandidate(
   width: 1920,
   height: 1080,
 );
+const movieMatch = CatalogMetadataCandidate(
+  providerId: '42',
+  name: 'Canonical Movie',
+  year: 1999,
+);
 
 class ArtworkSource extends fixtures.FakeMetadataSource
     implements CatalogArtworkSource {
   int refreshes = 0;
+  final artworkRequests = <(String, CatalogMediaKind)>[];
   int downloads = 0;
   Completer<Uint8List>? downloadGate;
   bool artworkOffline = false;
@@ -32,8 +38,10 @@ class ArtworkSource extends fixtures.FakeMetadataSource
   @override
   Future<List<CatalogArtworkCandidate>> artwork({
     required String providerId,
+    required CatalogMediaKind kind,
   }) async {
     refreshes++;
+    artworkRequests.add((providerId, kind));
     if (artworkOffline) {
       throw const CatalogMetadataException('Artwork unavailable.');
     }
@@ -143,6 +151,205 @@ void main() {
         .setMockMethodCallHandler(CatalogLibrary.channel, null);
   });
 
+  Future<void> initializeTitles(
+    List<StorageEntrySnapshot> entries, {
+    CatalogMetadataCandidate? match,
+  }) async {
+    fixture.close();
+    preferences.stored = '{}';
+    source = ArtworkSource();
+    fixture = fixtures.LibraryFixture(entries, source);
+    await fixture.initialize();
+    if (match != null) {
+      for (final title in [...fixture.library.localTitles]) {
+        await fixture.library.matcher.select(
+          title,
+          fixture.library.catalogScope,
+          match,
+        );
+      }
+      await fixture.library.waitForDiscovery();
+    }
+  }
+
+  test(
+    'movie refresh and independent artwork choices survive offline restart',
+    () async {
+      final entries = [files.file('Movies/My Movie (1999).mp4')];
+      await initializeTitles(entries, match: movieMatch);
+      final library = fixture.library;
+      final title = library.currentTitles.single;
+      expect(title.isSeries, isFalse);
+      expect(await library.thumbnail(title.first), [1]);
+      expect(await library.refreshArtwork(title), [poster, backdrop]);
+      await library.refreshArtwork(title);
+      expect(source.artworkRequests, [
+        ('42', CatalogMediaKind.movie),
+        ('42', CatalogMediaKind.movie),
+      ]);
+      expect(source.downloads, 0);
+      expect(preferences.saves, 0);
+      await library.selectArtwork(title, poster);
+      expect(await library.thumbnail(title.first), [2]);
+      expect(await library.thumbnail(title.first, backdrop: true), [1]);
+      await library.selectArtwork(title, backdrop);
+      expect(await library.thumbnail(title.first), [2]);
+      expect(await library.thumbnail(title.first, backdrop: true), [3]);
+      fixture.close();
+      fixture = fixtures.LibraryFixture(
+        entries,
+        ArtworkSource()..offline = true,
+      );
+      await fixture.initialize();
+      fixture.library.matcher.configure(null);
+      final restored = fixture.library.currentTitles.single;
+      expect(await fixture.library.thumbnail(restored.first), [2]);
+      expect(await fixture.library.thumbnail(restored.first, backdrop: true), [
+        3,
+      ]);
+    },
+  );
+
+  test(
+    'movie screenshots work without TMDB and persist as local artwork',
+    () async {
+      final entries = [files.file('Movies/My Movie (1999).mp4')];
+      await initializeTitles(entries);
+      final library = fixture.library;
+      library.matcher.configure(null);
+      final title = library.currentTitles.single;
+      final frame = await library.videoArtworkFrame(
+        title,
+        const Duration(seconds: 25),
+      );
+      expect(preferences.frameRequests.single, {
+        'treeUri': library.catalogScope,
+        'storageKey': title.first.id,
+        'positionMs': 25000,
+      });
+      await library.selectVideoArtwork(title, CatalogArtworkKind.poster, frame);
+      expect(await library.thumbnail(title.first), [4]);
+      expect(source.artworkRequests, isEmpty);
+      expect(source.downloads, 0);
+      fixture.close();
+      fixture = fixtures.LibraryFixture(
+        entries,
+        ArtworkSource()..offline = true,
+      );
+      await fixture.initialize();
+      expect(
+        await fixture.library.thumbnail(
+          fixture.library.currentTitles.single.first,
+        ),
+        [4],
+      );
+    },
+  );
+
+  test(
+    'movie refresh still requires a reviewed match and an enabled source',
+    () async {
+      await initializeTitles([files.file('Movies/My Movie (1999).mp4')]);
+      final library = fixture.library;
+      await expectLater(
+        library.refreshArtwork(library.currentTitles.single),
+        throwsA(
+          isA<CatalogMetadataException>().having(
+            (error) => error.message,
+            'message',
+            contains('Review the title match'),
+          ),
+        ),
+      );
+      await library.matcher.select(
+        library.localTitles.single,
+        library.catalogScope,
+        movieMatch,
+      );
+      await library.waitForDiscovery();
+      library.matcher.configure(null);
+      await expectLater(
+        library.refreshArtwork(library.currentTitles.single),
+        throwsA(
+          isA<CatalogMetadataException>().having(
+            (error) => error.message,
+            'message',
+            contains('Enable TMDB'),
+          ),
+        ),
+      );
+      expect(source.artworkRequests, isEmpty);
+      expect(preferences.saves, 0);
+    },
+  );
+
+  test(
+    'movie and TV artwork with the same provider ID stay independent',
+    () async {
+      await initializeTitles([
+        files.file('Movies/My Movie (1999).mp4'),
+        files.file('Shows/My Show/Season 1/My.Show.S01E01.mp4'),
+      ], match: movieMatch);
+      final library = fixture.library;
+      final movie = library.currentTitles.singleWhere(
+        (title) => !title.isSeries,
+      );
+      final show = library.currentTitles.singleWhere((title) => title.isSeries);
+      await library.refreshArtwork(show);
+      await expectLater(
+        library.selectArtwork(movie, poster),
+        throwsA(isA<CatalogMetadataException>()),
+      );
+      await library.refreshArtwork(movie);
+      expect(source.artworkRequests, [
+        ('42', CatalogMediaKind.series),
+        ('42', CatalogMediaKind.movie),
+      ]);
+      await library.selectArtwork(movie, poster);
+      await library.selectArtwork(show, backdrop);
+      expect(await library.thumbnail(movie.first), [2]);
+      expect(await library.thumbnail(movie.first, backdrop: true), [1]);
+      expect(await library.thumbnail(show.first), [1]);
+      expect(await library.thumbnail(show.first, backdrop: true), [3]);
+    },
+  );
+
+  test(
+    'merged movie copies retain artwork after the original copy is removed',
+    () async {
+      final original = files.file('Movies/My Movie (1999).mp4');
+      await initializeTitles([original], match: movieMatch);
+      final library = fixture.library;
+      final title = library.currentTitles.single;
+      await library.refreshArtwork(title);
+      await library.selectArtwork(title, poster);
+      final copy = files.file('Movies/My Movie Copy (1999).mp4');
+      library.titlesFor([original, copy]);
+      await library.waitForDiscovery();
+      await library.matcher.idle;
+      final localCopy = library.localTitles.singleWhere(
+        (title) => title.first.id == copy.storageKey,
+      );
+      await library.matcher.select(localCopy, library.catalogScope, movieMatch);
+      await library.waitForDiscovery();
+      final merged = library.currentTitles.single;
+      expect(merged.localIds, hasLength(2));
+      expect(await library.thumbnail(merged.videos.last), [2]);
+      await library.persist();
+      fixture.close();
+      fixture = fixtures.LibraryFixture([
+        copy,
+      ], ArtworkSource()..offline = true);
+      await fixture.initialize();
+      expect(
+        await fixture.library.thumbnail(
+          fixture.library.currentTitles.single.first,
+        ),
+        [2],
+      );
+    },
+  );
+
   test('screenshot source selects S01E01 including a multi-episode file', () {
     final library = fixture.library;
     final title = groupCatalog([
@@ -161,8 +368,11 @@ void main() {
     ]).single;
     expect(library.artworkVideo(missing), isNull);
     expect(
-      library.artworkVideo(groupCatalog([files.file('Film.mp4')]).single),
-      isNull,
+      library
+          .artworkVideo(groupCatalog([files.file('Film.mp4')]).single)
+          ?.file
+          .displayName,
+      'Film.mp4',
     );
   });
 

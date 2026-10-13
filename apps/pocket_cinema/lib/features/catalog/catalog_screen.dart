@@ -1499,22 +1499,25 @@ class _CatalogDetailState extends State<CatalogDetail> {
                         icon: const Icon(Icons.manage_search),
                         label: const Text('Review match'),
                       ),
-                      if (title.isSeries)
-                        OutlinedButton.icon(
-                          key: const Key('refresh-tv-artwork'),
-                          onPressed: () => unawaited(
-                            openCatalogArtworkPicker(
-                              context,
-                              library,
-                              title,
-                              onReviewMatch: () => unawaited(
-                                reviewCatalogMatch(context, library, title),
-                              ),
+                      OutlinedButton.icon(
+                        key: Key(
+                          title.isSeries
+                              ? 'refresh-tv-artwork'
+                              : 'refresh-movie-artwork',
+                        ),
+                        onPressed: () => unawaited(
+                          openCatalogArtworkPicker(
+                            context,
+                            library,
+                            title,
+                            onReviewMatch: () => unawaited(
+                              reviewCatalogMatch(context, library, title),
                             ),
                           ),
-                          icon: const Icon(Icons.image_search),
-                          label: const Text('Refresh artwork'),
                         ),
+                        icon: const Icon(Icons.image_search),
+                        label: const Text('Refresh artwork'),
+                      ),
                     ],
                   ),
                 ),

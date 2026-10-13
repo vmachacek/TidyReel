@@ -591,7 +591,7 @@ class CatalogLibrary extends ChangeNotifier {
 
   bool _propagateArtworkAliases(List<CatalogTitle> titles) {
     var changed = false;
-    for (final title in titles.where((title) => title.isSeries)) {
+    for (final title in titles) {
       for (final kind in CatalogArtworkKind.values) {
         final aliases = _artworkAliasKeys(title, _catalogScope, kind);
         final chosen = aliases
@@ -611,13 +611,14 @@ class CatalogLibrary extends ChangeNotifier {
 
   String _artworkRequestKey(CatalogTitle title, String scope) => jsonEncode([
     _artworkKey(title, scope, CatalogArtworkKind.poster),
+    title.isSeries,
     title.providerId,
   ]);
 
-  /// Only the first episode is offered, including files containing a range.
+  /// Use the movie file or the first episode, including episode range files.
   CatalogVideo? artworkVideo(CatalogTitle title) {
     final current = _artworkTitle(title);
-    if (!current.isSeries) return null;
+    if (!current.isSeries) return current.videos.firstOrNull;
     return current.videos.where((video) {
       if (video.season != 1) return false;
       if (video.parsed.episodes.isNotEmpty) {
@@ -632,6 +633,7 @@ class CatalogLibrary extends ChangeNotifier {
       jsonEncode([
         _artworkAliasKeys(title, scope, CatalogArtworkKind.poster),
         title.id,
+        title.isSeries,
         title.name,
         title.providerId,
         for (final video in title.videos)
@@ -657,8 +659,10 @@ class CatalogLibrary extends ChangeNotifier {
               title.providerId,
         ) ||
         _videoArtworkRequestKey(_artworkTitle(title), scope) != requestKey) {
-      throw const CatalogMetadataException(
-        'The show or library changed. Preview S01E01 again.',
+      throw CatalogMetadataException(
+        title.isSeries
+            ? 'The show or library changed. Preview S01E01 again.'
+            : 'The movie or library changed. Preview the movie again.',
       );
     }
   }
@@ -672,8 +676,10 @@ class CatalogLibrary extends ChangeNotifier {
     final current = _artworkTitle(title);
     final video = artworkVideo(current);
     if (video == null) {
-      throw const CatalogMetadataException(
-        'Add S01E01 to this show to take a screenshot.',
+      throw CatalogMetadataException(
+        current.isSeries
+            ? 'Add S01E01 to this show to take a screenshot.'
+            : 'Add a video file to this movie to take a screenshot.',
       );
     }
     final scope = controller.state.root?.locator.opaqueValue;
@@ -706,8 +712,10 @@ class CatalogLibrary extends ChangeNotifier {
           positionMs is! int ||
           positionMs < 0 ||
           positionMs > durationMs) {
-        throw const CatalogMetadataException(
-          'Could not take a screenshot from S01E01. Please retry.',
+        throw CatalogMetadataException(
+          current.isSeries
+              ? 'Could not take a screenshot from S01E01. Please retry.'
+              : 'Could not take a screenshot from this movie. Please retry.',
         );
       }
       return CatalogArtworkFrame._(
@@ -722,8 +730,10 @@ class CatalogLibrary extends ChangeNotifier {
     } on CatalogMetadataException {
       rethrow;
     } on Object {
-      throw const CatalogMetadataException(
-        'Could not take a screenshot from S01E01. Please retry.',
+      throw CatalogMetadataException(
+        current.isSeries
+            ? 'Could not take a screenshot from S01E01. Please retry.'
+            : 'Could not take a screenshot from this movie. Please retry.',
       );
     }
   }
@@ -737,8 +747,10 @@ class CatalogLibrary extends ChangeNotifier {
     final current = _artworkTitle(title);
     void checkRequest() {
       if (!identical(frame._owner, this)) {
-        throw const CatalogMetadataException(
-          'The show or library changed. Preview S01E01 again.',
+        throw CatalogMetadataException(
+          current.isSeries
+              ? 'The show or library changed. Preview S01E01 again.'
+              : 'The movie or library changed. Preview the movie again.',
         );
       }
       _checkVideoArtworkRequest(
@@ -774,8 +786,10 @@ class CatalogLibrary extends ChangeNotifier {
               title.providerId,
         ) ||
         _artworkRequestKey(_artworkTitle(title), scope) != requestKey) {
-      throw const CatalogMetadataException(
-        'The show or library changed. Refresh artwork again.',
+      throw CatalogMetadataException(
+        title.isSeries
+            ? 'The show or library changed. Refresh artwork again.'
+            : 'The movie or library changed. Refresh artwork again.',
       );
     }
   }
@@ -786,11 +800,6 @@ class CatalogLibrary extends ChangeNotifier {
   ) async {
     await load();
     final current = _artworkTitle(title);
-    if (!current.isSeries) {
-      throw const CatalogMetadataException(
-        'Artwork refresh is available for TV shows.',
-      );
-    }
     final source = matcher.artworkSource;
     if (source == null) {
       throw const CatalogMetadataException(
@@ -807,7 +816,10 @@ class CatalogLibrary extends ChangeNotifier {
       throw const CatalogMetadataException('Choose a media folder first.');
     }
     final requestKey = _artworkRequestKey(current, scope);
-    final candidates = await source.artwork(providerId: current.providerId!);
+    final candidates = await source.artwork(
+      providerId: current.providerId!,
+      kind: current.isSeries ? CatalogMediaKind.series : CatalogMediaKind.movie,
+    );
     _checkArtworkRequest(current, scope, requestKey, source);
     final result = List<CatalogArtworkCandidate>.unmodifiable(candidates);
     _availableArtwork[requestKey] = (source: source, candidates: result);
@@ -973,10 +985,7 @@ class CatalogLibrary extends ChangeNotifier {
       backdrop: backdrop,
     );
     final title = currentTitles
-        .where(
-          (title) =>
-              title.isSeries && title.videos.any((v) => v.id == video.id),
-        )
+        .where((title) => title.videos.any((v) => v.id == video.id))
         .firstOrNull;
     final chosenKeys = <String>{};
     if (title != null) {

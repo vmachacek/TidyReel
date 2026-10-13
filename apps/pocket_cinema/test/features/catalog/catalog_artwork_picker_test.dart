@@ -162,6 +162,14 @@ CatalogTitle _title({bool matched = true, bool hasFirstEpisode = true}) =>
       ],
     );
 
+CatalogTitle _movieTitle({bool matched = true}) => CatalogTitle(
+  id: 'movie:my movie',
+  name: 'My Movie',
+  localIds: const ['movie:my movie'],
+  providerId: matched ? '42' : null,
+  videos: [CatalogVideo(files.file('Movies/My Movie (2020).mp4'))],
+);
+
 Future<_PickerLibrary> _library({bool enabled = true}) async {
   final app =
       fixtures.testApp(state: fixtures.filesAvailableState) as MaterialApp;
@@ -181,6 +189,7 @@ Future<void> _open(
   _PickerLibrary library, {
   bool matched = true,
   bool hasFirstEpisode = true,
+  CatalogTitle? title,
   VoidCallback? onReviewMatch,
 }) async {
   await tester.pumpWidget(
@@ -191,7 +200,8 @@ Future<void> _open(
             onPressed: () => openCatalogArtworkPicker(
               context,
               library,
-              _title(matched: matched, hasFirstEpisode: hasFirstEpisode),
+              title ??
+                  _title(matched: matched, hasFirstEpisode: hasFirstEpisode),
               onReviewMatch: onReviewMatch,
             ),
             child: const Text('Open artwork'),
@@ -343,26 +353,29 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('selected artwork is saved before the picker closes', (
-    tester,
-  ) async {
-    final library = await _library();
-    library.saveCompletion = Completer<void>();
-    await _open(tester, library);
-    await _select(tester, CatalogArtworkKind.poster);
-    await tester.tap(find.text('Use selected'));
-    await tester.pump();
-    expect(find.text('Saving…'), findsOneWidget);
-    expect(find.byType(CatalogArtworkPicker), findsOneWidget);
-    expect(library.applied, isNull);
+  for (final title in [_title(), _movieTitle()]) {
+    testWidgets('${title.name} artwork is saved before the picker closes', (
+      tester,
+    ) async {
+      final library = await _library();
+      library.saveCompletion = Completer<void>();
+      await _open(tester, library, title: title);
+      expect(library.refreshes, 1);
+      await _select(tester, CatalogArtworkKind.poster);
+      await tester.tap(find.text('Use selected'));
+      await tester.pump();
+      expect(find.text('Saving…'), findsOneWidget);
+      expect(find.byType(CatalogArtworkPicker), findsOneWidget);
+      expect(library.applied, isNull);
 
-    library.saveCompletion!.complete();
-    await tester.pumpAndSettle();
-    expect(library.applied, same(poster));
-    expect(library.saveAttempts, 1);
-    expect(find.byType(CatalogArtworkPicker), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+      library.saveCompletion!.complete();
+      await tester.pumpAndSettle();
+      expect(library.applied, same(poster));
+      expect(library.saveAttempts, 1);
+      expect(find.byType(CatalogArtworkPicker), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets(
     'download failure retains selection and current image for retry',
@@ -460,74 +473,101 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('missing TMDB match offers review before an API fetch', (
-    tester,
-  ) async {
-    final library = await _library();
-    var reviewed = false;
-    await _open(
-      tester,
-      library,
-      matched: false,
-      onReviewMatch: () => reviewed = true,
+  for (final title in [_title(matched: false), _movieTitle(matched: false)]) {
+    testWidgets(
+      '${title.name} missing TMDB match offers review before an API fetch',
+      (tester) async {
+        final library = await _library();
+        var reviewed = false;
+        await _open(
+          tester,
+          library,
+          title: title,
+          onReviewMatch: () => reviewed = true,
+        );
+        await _switchSource(tester, 'tmdb');
+        expect(
+          find.text(
+            'Choose a TMDB match for this ${title.isSeries ? 'show' : 'movie'} before refreshing artwork.',
+          ),
+          findsOneWidget,
+        );
+        expect(library.refreshes, 0);
+        await _reveal(tester, find.text('Review match'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Review match'));
+        await tester.pumpAndSettle();
+        expect(reviewed, isTrue);
+        expect(find.byType(CatalogArtworkPicker), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
     );
-    await _switchSource(tester, 'tmdb');
-    expect(
-      find.text('Choose a TMDB match for this show before refreshing artwork.'),
-      findsOneWidget,
+  }
+
+  for (final scenario in [
+    (title: _title(matched: false), kind: CatalogArtworkKind.backdrop),
+    (title: _movieTitle(matched: false), kind: CatalogArtworkKind.poster),
+    (title: _movieTitle(matched: false), kind: CatalogArtworkKind.backdrop),
+  ]) {
+    testWidgets(
+      'offline ${scenario.title.name} screenshot seeks and saves ${scenario.kind.name}',
+      (tester) async {
+        final library = await _library(enabled: false);
+        library.saveCompletion = Completer<void>();
+        await _open(tester, library, title: scenario.title);
+        expect(library.refreshes, 0);
+        expect(library.frameRequests, [Duration.zero]);
+        expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+        expect(library.saveAttempts, 0);
+        if (!scenario.title.isSeries) {
+          expect(find.text('Movie screenshot'), findsOneWidget);
+          expect(
+            find.text(
+              'Pick an image from TMDB or capture a frame from the movie. Your choice is saved on this device.',
+            ),
+            findsOneWidget,
+          );
+        }
+
+        await _switchKind(tester, scenario.kind);
+        final sliderFinder = find.byKey(const Key('artwork-video-slider'));
+        await _reveal(tester, sliderFinder);
+        await tester.pumpAndSettle();
+        if (!scenario.title.isSeries) {
+          expect(find.text('Screenshot from movie'), findsOneWidget);
+        }
+        const seekValue = 45000.0;
+        _slider(tester).onChanged!(seekValue);
+        await tester.pump();
+        expect(library.frameRequests, [Duration.zero]);
+        expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
+        expect(_saveButton(tester).onPressed, isNull);
+
+        _slider(tester).onChangeEnd!(seekValue);
+        await tester.pumpAndSettle();
+        expect(library.frameRequests, [
+          Duration.zero,
+          const Duration(seconds: 45),
+        ]);
+        expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
+        expect(_saveButton(tester).onPressed, isNotNull);
+        expect(library.saveAttempts, 0);
+        await tester.tap(find.text('Use screenshot'));
+        await tester.pump();
+        expect(find.text('Saving…'), findsOneWidget);
+        expect(find.byType(CatalogArtworkPicker), findsOneWidget);
+        expect(library.appliedFrame, isNull);
+
+        library.saveCompletion!.complete();
+        await tester.pumpAndSettle();
+        expect(library.appliedFrameKind, scenario.kind);
+        expect(library.appliedFrame!.position, const Duration(seconds: 45));
+        expect(library.saveAttempts, 1);
+        expect(find.byType(CatalogArtworkPicker), findsNothing);
+        expect(tester.takeException(), isNull);
+      },
     );
-    expect(library.refreshes, 0);
-    await _reveal(tester, find.text('Review match'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Review match'));
-    await tester.pumpAndSettle();
-    expect(reviewed, isTrue);
-    expect(find.byType(CatalogArtworkPicker), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
-
-  testWidgets('offline screenshot seeks on release and saves the chosen type', (
-    tester,
-  ) async {
-    final library = await _library(enabled: false);
-    library.saveCompletion = Completer<void>();
-    await _open(tester, library, matched: false);
-    expect(library.refreshes, 0);
-    expect(library.frameRequests, [Duration.zero]);
-    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
-    expect(library.saveAttempts, 0);
-
-    await _switchKind(tester, CatalogArtworkKind.backdrop);
-    final sliderFinder = find.byKey(const Key('artwork-video-slider'));
-    await _reveal(tester, sliderFinder);
-    await tester.pumpAndSettle();
-    const seekValue = 45000.0;
-    _slider(tester).onChanged!(seekValue);
-    await tester.pump();
-    expect(library.frameRequests, [Duration.zero]);
-    expect(find.byKey(const Key('artwork-video-preview')), findsNothing);
-    expect(_saveButton(tester).onPressed, isNull);
-
-    _slider(tester).onChangeEnd!(seekValue);
-    await tester.pumpAndSettle();
-    expect(library.frameRequests, [Duration.zero, const Duration(seconds: 45)]);
-    expect(find.byKey(const Key('artwork-video-preview')), findsOneWidget);
-    expect(_saveButton(tester).onPressed, isNotNull);
-    expect(library.saveAttempts, 0);
-    await tester.tap(find.text('Use screenshot'));
-    await tester.pump();
-    expect(find.text('Saving…'), findsOneWidget);
-    expect(find.byType(CatalogArtworkPicker), findsOneWidget);
-    expect(library.appliedFrame, isNull);
-
-    library.saveCompletion!.complete();
-    await tester.pumpAndSettle();
-    expect(library.appliedFrameKind, CatalogArtworkKind.backdrop);
-    expect(library.appliedFrame!.position, const Duration(seconds: 45));
-    expect(library.saveAttempts, 1);
-    expect(find.byType(CatalogArtworkPicker), findsNothing);
-    expect(tester.takeException(), isNull);
-  });
+  }
 
   testWidgets('screenshot slider starts with the first minute selected', (
     tester,
@@ -886,26 +926,29 @@ void main() {
     });
   }
 
-  testWidgets('empty artwork is explained and narrow layout remains usable', (
-    tester,
-  ) async {
-    await tester.binding.setSurfaceSize(const Size(320, 568));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final library = await _library();
-    library.candidates = const [];
-    await _open(tester, library);
-    await _reveal(
-      tester,
-      find.text(
-        'TMDB has no posters for this show. Your current artwork is still in use.',
-      ),
+  for (final title in [_title(), _movieTitle()]) {
+    testWidgets(
+      '${title.name} empty artwork is explained and narrow layout remains usable',
+      (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 568));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final library = await _library();
+        library.candidates = const [];
+        await _open(tester, library, title: title);
+        await _reveal(
+          tester,
+          find.text(
+            'TMDB has no posters for this ${title.isSeries ? 'show' : 'movie'}. Your current artwork is still in use.',
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(find.text('Keep current').hitTestable(), findsOneWidget);
+        expect(find.text('Use selected').hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.text('Keep current'));
+        await tester.pumpAndSettle();
+        expect(library.applied, isNull);
+      },
     );
-    await tester.pumpAndSettle();
-    expect(find.text('Keep current').hitTestable(), findsOneWidget);
-    expect(find.text('Use selected').hitTestable(), findsOneWidget);
-    expect(tester.takeException(), isNull);
-    await tester.tap(find.text('Keep current'));
-    await tester.pumpAndSettle();
-    expect(library.applied, isNull);
-  });
+  }
 }

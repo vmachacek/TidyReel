@@ -132,8 +132,14 @@ void main() {
     transport.respond(
       artworkResponse(posters: [artworkImage(path: '/new.jpg')]),
     );
-    final first = await source.artwork(providerId: '1396');
-    final second = await source.artwork(providerId: '1396');
+    final first = await source.artwork(
+      providerId: '1396',
+      kind: CatalogMediaKind.series,
+    );
+    final second = await source.artwork(
+      providerId: '1396',
+      kind: CatalogMediaKind.series,
+    );
     expect(transport.requests, hasLength(2));
     for (final uri in transport.requests) {
       expect(uri.scheme, 'https');
@@ -167,44 +173,101 @@ void main() {
 
   test('Returns no artwork and removes duplicate image choices', () async {
     transport.respond(artworkResponse());
-    expect(await source.artwork(providerId: '1396'), isEmpty);
+    expect(
+      await source.artwork(providerId: '1396', kind: CatalogMediaKind.series),
+      isEmpty,
+    );
     transport.respond(
       artworkResponse(posters: [artworkImage(), artworkImage()]),
     );
-    expect(await source.artwork(providerId: '1396'), hasLength(1));
+    expect(
+      await source.artwork(providerId: '1396', kind: CatalogMediaKind.series),
+      hasLength(1),
+    );
   });
 
-  test('Rejects invalid show IDs without making an artwork request', () async {
-    for (final id in ['../movie/1', '0', '-1', '01396', '2147483648']) {
-      await expectLater(
-        source.artwork(providerId: id),
-        throwsA(isA<CatalogMetadataException>()),
+  test(
+    'Refreshes movie posters and backdrops from the movie endpoint',
+    () async {
+      transport.respond(
+        artworkResponse(
+          id: 329865,
+          posters: [artworkImage()],
+          backdrops: [
+            artworkImage(
+              path: '/movie-backdrop.jpg',
+              width: 1920,
+              height: 1080,
+              language: null,
+            ),
+          ],
+        ),
       );
+      transport.respond(
+        artworkResponse(id: 329865, posters: [artworkImage(path: '/new.jpg')]),
+      );
+      final first = await source.artwork(
+        providerId: '329865',
+        kind: CatalogMediaKind.movie,
+      );
+      final second = await source.artwork(
+        providerId: '329865',
+        kind: CatalogMediaKind.movie,
+      );
+      expect(transport.requests, hasLength(2));
+      for (final uri in transport.requests) {
+        expect(uri.path, '/3/movie/329865/images');
+        expect(uri.queryParameters, isEmpty);
+      }
+      expect(first.map((item) => item.kind), [
+        CatalogArtworkKind.poster,
+        CatalogArtworkKind.backdrop,
+      ]);
+      expect(first.last.filePath, '/movie-backdrop.jpg');
+      expect(first.last.language, isNull);
+      expect(second.single.filePath, '/new.jpg');
+    },
+  );
+
+  test('Rejects invalid title IDs without making an artwork request', () async {
+    for (final kind in CatalogMediaKind.values) {
+      for (final id in ['../movie/1', '0', '-1', '01396', '2147483648']) {
+        await expectLater(
+          source.artwork(providerId: id, kind: kind),
+          throwsA(isA<CatalogMetadataException>()),
+        );
+      }
     }
     expect(transport.requests, isEmpty);
   });
 
-  test('Rejects malformed artwork and mismatched shows', () async {
-    for (final response in [
-      artworkResponse(id: 999),
-      artworkResponse(id: '1396'),
-      artworkResponse(posters: null),
-      artworkResponse(backdrops: {}),
-      artworkResponse(posters: [artworkImage(width: 0)]),
-      artworkResponse(posters: [artworkImage(height: 1.5)]),
-      artworkResponse(posters: [artworkImage(language: 5)]),
-      artworkResponse(posters: [artworkImage(path: '')]),
-      artworkResponse(posters: [artworkImage(path: '/nested/image.jpg')]),
-      artworkResponse(posters: [artworkImage(path: '/../private.jpg')]),
-      artworkResponse(posters: [artworkImage(path: '//example.com/image.jpg')]),
-      artworkResponse(posters: [artworkImage(path: '/image.svg')]),
-      artworkResponse(posters: [artworkImage(path: '/image.jpg?token=secret')]),
-    ]) {
-      transport.respond(response);
-      await expectLater(
-        source.artwork(providerId: '1396'),
-        throwsA(isA<CatalogMetadataException>()),
-      );
+  test('Rejects malformed artwork and mismatched titles', () async {
+    for (final kind in CatalogMediaKind.values) {
+      for (final response in [
+        artworkResponse(id: 999),
+        artworkResponse(id: '1396'),
+        artworkResponse(posters: null),
+        artworkResponse(backdrops: {}),
+        artworkResponse(posters: [artworkImage(width: 0)]),
+        artworkResponse(posters: [artworkImage(height: 1.5)]),
+        artworkResponse(posters: [artworkImage(language: 5)]),
+        artworkResponse(posters: [artworkImage(path: '')]),
+        artworkResponse(posters: [artworkImage(path: '/nested/image.jpg')]),
+        artworkResponse(posters: [artworkImage(path: '/../private.jpg')]),
+        artworkResponse(
+          posters: [artworkImage(path: '//example.com/image.jpg')],
+        ),
+        artworkResponse(posters: [artworkImage(path: '/image.svg')]),
+        artworkResponse(
+          posters: [artworkImage(path: '/image.jpg?token=secret')],
+        ),
+      ]) {
+        transport.respond(response);
+        await expectLater(
+          source.artwork(providerId: '1396', kind: kind),
+          throwsA(isA<CatalogMetadataException>()),
+        );
+      }
     }
   });
 

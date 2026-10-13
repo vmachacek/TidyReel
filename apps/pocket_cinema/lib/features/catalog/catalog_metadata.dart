@@ -36,7 +36,10 @@ class CatalogArtworkCandidate {
 /// Optional artwork support, independent of cached title and episode metadata.
 abstract interface class CatalogArtworkSource {
   /// Fetch the current image choices from the provider on every call.
-  Future<List<CatalogArtworkCandidate>> artwork({required String providerId});
+  Future<List<CatalogArtworkCandidate>> artwork({
+    required String providerId,
+    required CatalogMediaKind kind,
+  });
 
   Future<Uint8List> downloadArtwork(CatalogArtworkCandidate candidate);
 }

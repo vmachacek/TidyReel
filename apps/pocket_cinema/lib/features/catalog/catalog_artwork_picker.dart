@@ -65,6 +65,8 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
   bool get _matched => widget.title.providerId?.isNotEmpty == true;
   bool get _canFetch => _enabled && _matched;
   bool get _fromVideo => _source == _ArtworkSource.video;
+  String get _titleKind => widget.title.isSeries ? 'show' : 'movie';
+  String get _videoLabel => widget.title.isSeries ? 'S01E01' : 'Movie';
   Duration get _videoRangeDuration =>
       _focusStart && _videoDuration > const Duration(minutes: 1)
       ? const Duration(minutes: 1)
@@ -282,8 +284,8 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
                   style: Theme.of(context).textTheme.headlineSmall,
                 ),
                 const SizedBox(height: 8),
-                const Text(
-                  'Pick an image from TMDB or capture a frame from S01E01. Your choice is saved on this device.',
+                Text(
+                  'Pick an image from TMDB or capture a frame from ${widget.title.isSeries ? 'S01E01' : 'the movie'}. Your choice is saved on this device.',
                 ),
                 const SizedBox(height: 16),
                 Wrap(
@@ -302,7 +304,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
                     ChoiceChip(
                       key: const Key('artwork-source-video'),
                       avatar: const Icon(Icons.video_library, size: 18),
-                      label: const Text('S01E01 screenshot'),
+                      label: Text('$_videoLabel screenshot'),
                       selected: _fromVideo,
                       onSelected: _saving
                           ? null
@@ -397,8 +399,10 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
   Widget _videoEditor() {
     final video = widget.library.artworkVideo(widget.title);
     if (video == null) {
-      return const Text(
-        'S01E01 is not in this library. Add the first episode to capture a screenshot.',
+      return Text(
+        widget.title.isSeries
+            ? 'S01E01 is not in this library. Add the first episode to capture a screenshot.'
+            : 'The movie is not in this library. Add it to capture a screenshot.',
       );
     }
     final maximum = _sliderMaximum;
@@ -406,7 +410,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'Screenshot from S01E01',
+          'Screenshot from ${widget.title.isSeries ? 'S01E01' : 'movie'}',
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 4),
@@ -484,8 +488,8 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
       if (!_enabled)
         const Text('Enable TMDB in Library Settings to refresh artwork.')
       else if (!_matched) ...[
-        const Text(
-          'Choose a TMDB match for this show before refreshing artwork.',
+        Text(
+          'Choose a TMDB match for this $_titleKind before refreshing artwork.',
         ),
         if (widget.onReviewMatch != null)
           Align(
@@ -533,7 +537,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
         ] else if (!_fetching && _fetchError == null) ...[
           const SizedBox(height: 12),
           Text(
-            'TMDB has no ${_kind == CatalogArtworkKind.poster ? 'posters' : 'backdrops'} for this show. Your current artwork is still in use.',
+            'TMDB has no ${_kind == CatalogArtworkKind.poster ? 'posters' : 'backdrops'} for this $_titleKind. Your current artwork is still in use.',
           ),
         ],
       ],
@@ -619,7 +623,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
                                 key: const Key('artwork-video-preview'),
                                 fit: BoxFit.cover,
                                 semanticLabel:
-                                    'S01E01 screenshot at ${_time(_videoFrame!.position)}',
+                                    '$_videoLabel screenshot at ${_time(_videoFrame!.position)}',
                                 errorBuilder: (_, _, _) =>
                                     const _ArtworkPlaceholder(
                                       'Screenshot preview unavailable',
@@ -631,7 +635,7 @@ class _CatalogArtworkPickerState extends State<CatalogArtworkPicker> {
                 ),
                 if (_fromVideo && _videoFrame != null) ...[
                   const SizedBox(height: 6),
-                  Text('S01E01 · ${_time(_videoFrame!.position)}'),
+                  Text('$_videoLabel · ${_time(_videoFrame!.position)}'),
                 ] else if (!_fromVideo && _selected != null) ...[
                   const SizedBox(height: 6),
                   Text(_description(_selected!)),

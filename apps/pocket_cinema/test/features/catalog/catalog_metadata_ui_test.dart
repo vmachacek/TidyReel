@@ -3,12 +3,31 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pocket_cinema/features/catalog/catalog_library.dart';
+import 'package:pocket_cinema/features/catalog/catalog_metadata.dart';
 import 'package:pocket_cinema/features/catalog/catalog_screen.dart';
 
 import '../../support/catalog_discovery.dart';
 import '../risk_spike/risk_spike_screen_test.dart' as fixtures;
 import 'catalog_library_test.dart' as files;
 import 'catalog_screen_test.dart' as screens;
+
+class _MetadataSource implements CatalogMetadataSource {
+  @override
+  Future<List<CatalogMetadataCandidate>> search({
+    required String title,
+    required CatalogMediaKind kind,
+    int? year,
+  }) async => const [];
+
+  @override
+  Future<List<CatalogEpisodeMetadata>> episodes({
+    required String providerId,
+    required int season,
+  }) async => const [];
+
+  @override
+  void dispose() {}
+}
 
 Future<void> _mobile(WidgetTester tester) async {
   await tester.binding.setSurfaceSize(const Size(390, 844));
@@ -158,6 +177,42 @@ void main() {
     expect(find.byType(CatalogDetail), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  for (final enabled in [false, true]) {
+    testWidgets('movie artwork action opens the picker with TMDB $enabled', (
+      tester,
+    ) async {
+      await _mobile(tester);
+      _localPreferences();
+      await tester.pumpWidget(screens.app(fixtures.filesAvailableState));
+      await settleCatalog(tester);
+      if (enabled) {
+        catalogLibrary(tester).matcher.configure(_MetadataSource());
+        await settleCatalog(tester);
+      }
+      await _openOnlyTitle(tester);
+      expect(
+        tester.widget<CatalogDetail>(find.byType(CatalogDetail)).title.isSeries,
+        isFalse,
+      );
+      final refresh = find.byKey(const Key('refresh-movie-artwork'));
+      await tester.ensureVisible(refresh);
+      await settleCatalog(tester);
+      expect(refresh.hitTestable(), findsOneWidget);
+
+      await tester.tap(refresh);
+      await settleCatalog(tester);
+      expect(find.byKey(const Key('artwork-screen')), findsOneWidget);
+      expect(find.text('Current artwork'), findsOneWidget);
+      expect(find.text('Movie screenshot'), findsOneWidget);
+      expect(catalogLibrary(tester).matcher.enabled, enabled);
+
+      await tester.tap(find.text('Keep current'));
+      await settleCatalog(tester);
+      expect(find.byType(CatalogDetail), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final cachedMatch in [false, true]) {
     testWidgets(

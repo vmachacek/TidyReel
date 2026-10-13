@@ -210,20 +210,10 @@ Future<void> reviewCatalogMatch(
                     style: const TextStyle(fontWeight: FontWeight.w700),
                   ),
                   if (library.matcher.enabled)
-                    TextField(
-                      key: ValueKey('review-match-search-${local.id}'),
-                      decoration: const InputDecoration(
-                        labelText: 'Search another title',
-                        hintText: 'Enter a title and press Search',
-                      ),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (value) => unawaited(
-                        library.matcher.search(
-                          local,
-                          library.catalogScope,
-                          value,
-                        ),
-                      ),
+                    _CatalogMatchSearch(
+                      key: ValueKey(local.id),
+                      library: library,
+                      local: local,
                     ),
                   if (library.matcher.failures[library.matcher.key(
                         library.catalogScope,
@@ -272,7 +262,7 @@ Future<void> reviewCatalogMatch(
                           .isEmpty &&
                       library.matcher.enabled)
                     const Text(
-                      'No title candidates yet. Retry matching to search again.',
+                      'No title candidates yet. Enter a title and tap Search.',
                     ),
                 ],
                 const SizedBox(height: 16),
@@ -297,4 +287,85 @@ Future<void> reviewCatalogMatch(
       ),
     ),
   );
+}
+
+class _CatalogMatchSearch extends StatefulWidget {
+  const _CatalogMatchSearch({
+    required this.library,
+    required this.local,
+    super.key,
+  });
+
+  final CatalogLibrary library;
+  final CatalogTitle local;
+
+  @override
+  State<_CatalogMatchSearch> createState() => _CatalogMatchSearchState();
+}
+
+class _CatalogMatchSearchState extends State<_CatalogMatchSearch>
+    with AutomaticKeepAliveClientMixin {
+  final query = TextEditingController();
+  bool searching = false;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  Future<void> search() async {
+    final value = query.text.trim();
+    if (searching || value.isEmpty || !widget.library.matcher.enabled) return;
+    FocusScope.of(context).unfocus();
+    setState(() => searching = true);
+    try {
+      await widget.library.matcher.search(
+        widget.local,
+        widget.library.catalogScope,
+        value,
+      );
+    } finally {
+      if (mounted) setState(() => searching = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    query.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return Row(
+      children: [
+        Expanded(
+          child: TextField(
+            key: ValueKey('review-match-search-${widget.local.id}'),
+            controller: query,
+            decoration: const InputDecoration(
+              labelText: 'Search another title',
+              hintText: 'Enter a title',
+            ),
+            textInputAction: TextInputAction.search,
+            onChanged: (_) => setState(() {}),
+            onSubmitted: (_) => unawaited(search()),
+          ),
+        ),
+        const SizedBox(width: 12),
+        FilledButton.icon(
+          key: ValueKey('review-match-submit-${widget.local.id}'),
+          onPressed: searching || query.text.trim().isEmpty
+              ? null
+              : () => unawaited(search()),
+          icon: searching
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.search),
+          label: Text(searching ? 'Searching…' : 'Search'),
+        ),
+      ],
+    );
+  }
 }

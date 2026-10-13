@@ -169,6 +169,24 @@ void main() {
   const controlsChannel = MethodChannel('com.pocketcinema.app/player_controls');
 
   setUp(() {
+    // Host system UI replies are asynchronous and may outlive pumpAndSettle.
+    // This test exercises the video surface, so complete native UI calls in the
+    // fake clock just as we replace the native decoder and texture bridge.
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          switch (call.method) {
+            case 'SystemChrome.setEnabledSystemUIMode':
+              expect(call.arguments, 'SystemUiMode.immersiveSticky');
+              return null;
+            case 'SystemChrome.setApplicationSwitcherDescription':
+            case 'SystemChrome.setSystemUIOverlayStyle':
+            case 'SystemNavigator.setFrameworkHandlesBack':
+            case 'SystemSound.play':
+              return null;
+            default:
+              throw StateError('Unexpected platform call: ${call.method}');
+          }
+        });
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(controlsChannel, (call) async {
           return call.method == 'beginWatching' ? 0.65 : null;
@@ -178,6 +196,8 @@ void main() {
   });
 
   tearDown(() {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(controlsChannel, null);
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

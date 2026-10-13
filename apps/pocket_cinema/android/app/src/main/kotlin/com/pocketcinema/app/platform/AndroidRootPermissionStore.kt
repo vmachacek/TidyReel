@@ -8,12 +8,12 @@ import android.provider.DocumentsContract
 class AndroidRootPermissionStore(
     private val contentResolver: ContentResolver,
 ) {
-    fun persistReadPermission(
+    fun persistRootPermission(
         treeUri: Uri,
         returnedFlags: Int,
     ): AuthorizedRootMessage {
-        val readFlags = PersistableFlagPolicy.readOnly(returnedFlags)
-        if (readFlags == 0) {
+        val retainedFlags = PersistableFlagPolicy.readAndWrite(returnedFlags)
+        if (retainedFlags and Intent.FLAG_GRANT_READ_URI_PERMISSION == 0) {
             throw FlutterError(
                 code = "PERMISSION_REVOKED",
                 message = "The selected provider did not return read access.",
@@ -21,11 +21,11 @@ class AndroidRootPermissionStore(
         }
 
         try {
-            contentResolver.takePersistableUriPermission(treeUri, readFlags)
+            contentResolver.takePersistableUriPermission(treeUri, retainedFlags)
         } catch (_: SecurityException) {
             throw FlutterError(
                 code = "PERMISSION_REVOKED",
-                message = "Read access could not be retained.",
+                message = "Folder access could not be retained.",
             )
         }
 
@@ -53,10 +53,10 @@ class AndroidRootPermissionStore(
 
     fun releasePermission(treeUri: String) {
         val uri = Uri.parse(treeUri)
-        val hasPersistedRead = contentResolver.persistedUriPermissions.any { permission ->
+        val permission = contentResolver.persistedUriPermissions.firstOrNull { permission ->
             permission.isReadPermission && permission.uri == uri
         }
-        if (!hasPersistedRead) {
+        if (permission == null) {
             throw FlutterError(
                 code = "PERMISSION_REVOKED",
                 message = "Persisted read access is absent.",
@@ -66,7 +66,8 @@ class AndroidRootPermissionStore(
         try {
             contentResolver.releasePersistableUriPermission(
                 uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    (if (permission.isWritePermission) Intent.FLAG_GRANT_WRITE_URI_PERMISSION else 0),
             )
         } catch (_: SecurityException) {
             throw FlutterError(

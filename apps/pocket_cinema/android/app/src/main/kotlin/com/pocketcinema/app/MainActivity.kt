@@ -1,6 +1,7 @@
 package com.pocketcinema.app
 
 import com.pocketcinema.app.platform.CatalogPlatform
+import com.pocketcinema.app.platform.OrganizerPlatform
 import com.pocketcinema.app.platform.KillSwitchPlatform
 import com.pocketcinema.app.platform.PlayerControlsPlatform
 import com.pocketcinema.app.platform.RenderingPerformancePlatform
@@ -72,6 +73,7 @@ class MainActivity : FlutterFragmentActivity() {
     }
 
     private var catalogPlatform: CatalogPlatform? = null
+    private var organizerPlatform: OrganizerPlatform? = null
     private var killSwitchPlatform: KillSwitchPlatform? = null
     private var pendingBluetoothPermissionResult: MethodChannel.Result? = null
     private var playerControls: PlayerControlsPlatform? = null
@@ -131,7 +133,7 @@ class MainActivity : FlutterFragmentActivity() {
             }
 
             val outcome = runCatching {
-                rootPermissionStore.persistReadPermission(
+                rootPermissionStore.persistRootPermission(
                     treeUri = uri,
                     returnedFlags = result.data?.flags ?: 0,
                 )
@@ -142,6 +144,7 @@ class MainActivity : FlutterFragmentActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         catalogPlatform = CatalogPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
+        organizerPlatform = OrganizerPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         killSwitchPlatform = KillSwitchPlatform(this, flutterEngine.dartExecutor.binaryMessenger, ::requestBluetoothPermissions)
         playerControls = PlayerControlsPlatform(this, flutterEngine.dartExecutor.binaryMessenger)
         renderingPerformance = RenderingPerformancePlatform(this, flutterEngine.dartExecutor.binaryMessenger)
@@ -187,6 +190,8 @@ class MainActivity : FlutterFragmentActivity() {
         renderingPerformance = null
         catalogPlatform?.close()
         catalogPlatform = null
+        organizerPlatform?.close()
+        organizerPlatform = null
         StorageHostApi.setUp(flutterEngine.dartExecutor.binaryMessenger, null)
         scanSessionRegistry.close()
         playbackLeaseRegistry.closeAll()
@@ -223,6 +228,7 @@ class MainActivity : FlutterFragmentActivity() {
     private fun directoryPickerIntent(): Intent =
         Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
             addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
 }

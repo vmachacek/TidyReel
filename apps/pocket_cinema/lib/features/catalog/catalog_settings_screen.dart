@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../kill_switch/kill_switch_note.dart';
 import 'catalog_library.dart';
 import 'catalog_metadata_settings.dart';
+import 'library_organization_screen.dart';
 
 class CatalogSettingsScreen extends StatelessWidget {
   const CatalogSettingsScreen({
@@ -80,6 +81,23 @@ class CatalogSettingsScreen extends StatelessWidget {
                       openDiagnostics();
                     },
                     child: const Text('Open Diagnostics'),
+                  ),
+                  const SizedBox(height: 8),
+                  ListenableBuilder(
+                    listenable: controller,
+                    builder: (context, _) => OutlinedButton.icon(
+                      key: const Key('settings-organize-library'),
+                      onPressed: controller.canOrganizeLibrary
+                          ? () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) =>
+                                    LibraryOrganizationScreen(library: library),
+                              ),
+                            )
+                          : null,
+                      icon: const Icon(Icons.drive_file_move_outline),
+                      label: const Text('Rename & organize files'),
+                    ),
                   ),
                   const Divider(height: 32),
                   const Text(

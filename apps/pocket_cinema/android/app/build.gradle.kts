@@ -11,6 +11,14 @@ plugins {
 // Flutter's Windows process environment uppercases names, including the Gradle
 // property suffix. Keep this opt-in property uppercase throughout the toolchain.
 val personalInstall = providers.gradleProperty("POCKET_CINEMA_PERSONAL_INSTALL").orNull == "true"
+// Device organizer tests use their own app data and permission grants.
+// Normal debug and release builds keep the original application ID.
+val organizerSmoke = providers.gradleProperty("POCKET_CINEMA_ORGANIZER_SMOKE").orNull == "true"
+if (organizerSmoke && gradle.startParameter.taskNames.any {
+        it.substringAfterLast(':').contains("release", ignoreCase = true)
+    }) {
+    throw GradleException("Organizer smoke isolation is debug-only. Unset POCKET_CINEMA_ORGANIZER_SMOKE for release builds.")
+}
 if (personalInstall && (gradle.startParameter.taskNames.isEmpty() ||
         gradle.startParameter.taskNames.any { it.substringAfterLast(':') != "assembleRelease" })) {
     throw GradleException("Personal signing is only allowed for assembleRelease APKs. Use tool/build-play-bundle.ps1 for Google Play.")
@@ -76,6 +84,9 @@ android {
     }
 
     buildTypes {
+        debug {
+            if (organizerSmoke) applicationIdSuffix = ".organizercheck"
+        }
         release {
             signingConfig = signingConfigs.getByName(if (personalInstall) "debug" else "upload")
         }

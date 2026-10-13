@@ -42,6 +42,67 @@ final class RiskSpikeController extends ChangeNotifier {
   RiskSpikeState _state;
   RiskSpikeState get state => _state;
 
+  bool _libraryOrganizationActive = false;
+  int _pendingPlaybackOperations = 0;
+  int _pendingProbeOperations = 0;
+  bool get libraryOrganizationActive => _libraryOrganizationActive;
+  bool get canOrganizeLibrary =>
+      !_disposed &&
+      !_libraryOrganizationActive &&
+      state.canRescan &&
+      state.scanCompleted &&
+      _pendingPlaybackOperations == 0 &&
+      _pendingProbeOperations == 0 &&
+      _activeScanId == null;
+
+  /// Keeps scans and folder changes out of the physical rename operation.
+  bool beginLibraryOrganization() {
+    if (!canOrganizeLibrary) return false;
+    _libraryOrganizationActive = true;
+    notifyListeners();
+    return true;
+  }
+
+  void endLibraryOrganization() {
+    if (!_libraryOrganizationActive) return;
+    _libraryOrganizationActive = false;
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Publish changed identifiers before rescanning, so a failed refresh cannot
+  /// restore paths that have already moved. Keep the operation lock throughout.
+  Future<void> refreshAfterLibraryOrganization(
+    AuthorizedLibraryRoot root,
+    Map<String, StorageEntrySnapshot> replacements,
+  ) async {
+    if (!_libraryOrganizationActive ||
+        !_sameRoot(_state.root?.locator, root.locator)) {
+      return;
+    }
+    if (replacements.isNotEmpty) {
+      StorageEntrySnapshot replace(StorageEntrySnapshot file) =>
+          replacements[file.storageKey] ?? file;
+      final inventory = ScanInventory(
+        root: root.locator,
+        videos: _state.entries.map(replace).toList(),
+        artwork: _state.artworkEntries.map(replace).toList(),
+        subtitles: _subtitleEntries.map(replace).toList(),
+        discoveredCount: _state.discoveredCount,
+        ignoredCount: _state.ignoredCount,
+        completedAtUtc: _clock().toUtc(),
+      );
+      _emit(_state.copyWith(clearSelectedFile: true, clearProbeResult: true));
+      _publishInventory(inventory);
+      await _inventoryWrite;
+      try {
+        await _inventoryStore.save(inventory);
+      } on Object {
+        // Live paths remain correct even when the optional cache is unavailable.
+      }
+    }
+    await _scan(root);
+  }
+
   bool _playbackBlocked = false;
   int _playbackBlockGeneration = 0;
   Future<void>? _playbackBlockPause;
@@ -120,6 +181,7 @@ final class RiskSpikeController extends ChangeNotifier {
 
   bool get needsBackgroundRefresh {
     if (_disposed ||
+        _libraryOrganizationActive ||
         _activeScanId != null ||
         _state.root == null ||
         !_state.scanCompleted ||
@@ -195,6 +257,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> chooseRoot() async {
+    if (_libraryOrganizationActive) return;
     final generation = ++_rootGeneration;
     final previous = _previousInventory ?? _state;
     _invalidateScan();
@@ -227,6 +290,7 @@ final class RiskSpikeController extends ChangeNotifier {
   Future<void> repairRoot() => chooseRoot();
 
   Future<void> releaseRoot() async {
+    if (_libraryOrganizationActive) return;
     final root = _state.root;
     if (root == null) {
       return;
@@ -263,7 +327,10 @@ final class RiskSpikeController extends ChangeNotifier {
     }
   }
 
-  Future<void> scan(AuthorizedLibraryRoot root) => _scan(root);
+  Future<void> scan(AuthorizedLibraryRoot root) async {
+    if (_libraryOrganizationActive) return;
+    await _scan(root);
+  }
 
   Future<void> _scan(
     AuthorizedLibraryRoot root, {
@@ -424,6 +491,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   void selectFile(StorageEntrySnapshot entry) {
+    if (_libraryOrganizationActive) return;
     _emit(
       _state.copyWith(
         phase: RiskSpikePhase.fileReady,
@@ -436,6 +504,17 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> probeSelected() async {
+    if (_libraryOrganizationActive) return;
+    _pendingProbeOperations++;
+    try {
+      await _probeSelected();
+    } finally {
+      _pendingProbeOperations--;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _probeSelected() async {
     final root = _state.root;
     final entry = _state.selectedFile;
     if (root == null || entry == null) {
@@ -463,7 +542,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> playSelected({Duration startPosition = Duration.zero}) async {
-    if (_playbackBlocked) return;
+    if (_playbackBlocked || _libraryOrganizationActive) return;
     final root = _state.root;
     final entry = _state.selectedFile;
     if (root == null || entry == null) {
@@ -480,6 +559,29 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> play(
+    AuthorizedLibraryRoot root,
+    StorageEntrySnapshot entry, {
+    StorageEntrySnapshot? subtitle,
+    String? subtitleLanguageTag,
+    Duration startPosition = Duration.zero,
+  }) async {
+    if (_playbackBlocked || _libraryOrganizationActive) return;
+    _pendingPlaybackOperations++;
+    try {
+      await _openPlayback(
+        root,
+        entry,
+        subtitle: subtitle,
+        subtitleLanguageTag: subtitleLanguageTag,
+        startPosition: startPosition,
+      );
+    } finally {
+      _pendingPlaybackOperations--;
+      if (!_disposed) notifyListeners();
+    }
+  }
+
+  Future<void> _openPlayback(
     AuthorizedLibraryRoot root,
     StorageEntrySnapshot entry, {
     StorageEntrySnapshot? subtitle,
@@ -582,7 +684,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> togglePlayPause() async {
-    if (_playbackBlocked) return;
+    if (_playbackBlocked || _libraryOrganizationActive) return;
     final blockGeneration = _playbackBlockGeneration;
     await _playbackBlockPause;
     if (_playbackBlocked || blockGeneration != _playbackBlockGeneration) return;
@@ -597,7 +699,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> seekBy(Duration delta) async {
-    if (_playbackBlocked) return;
+    if (_playbackBlocked || _libraryOrganizationActive) return;
     final current = playback.snapshot.position;
     var target = current + delta;
     if (target.isNegative) {
@@ -611,7 +713,7 @@ final class RiskSpikeController extends ChangeNotifier {
   }
 
   Future<void> seekToStart() async {
-    if (_playbackBlocked) return;
+    if (_playbackBlocked || _libraryOrganizationActive) return;
     _applyPlaybackResult(await playback.seek(Duration.zero));
   }
 

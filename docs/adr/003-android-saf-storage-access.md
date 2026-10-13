@@ -13,9 +13,16 @@ must remain behind the platform boundary.
 
 ## Decision
 
-Use `ACTION_OPEN_DOCUMENT_TREE` and request read plus persistable URI flags.
-Persist only the read permission returned by the provider. At startup, list
-persisted read grants and validate a root by querying its document metadata.
+Use `ACTION_OPEN_DOCUMENT_TREE` and request read, write, and persistable URI
+flags. Persist only the read/write permissions actually returned by the
+provider. Read-only providers remain usable for playback. Physical organization
+requires a retained write grant; existing read-only roots must be selected again.
+At startup, list persisted read grants and validate a root by querying its
+document metadata. Release both retained permissions when disconnecting a root.
+
+The 2026-10-13 [rename and organize feature](../library-organization.md) extends
+the original read-only decision with user-invoked provider-native moves and
+renames inside the selected tree.
 
 Treat provider authority plus document id as the opaque storage key. Rebuild a
 document URI only inside the Android adapter, and reject keys whose authority

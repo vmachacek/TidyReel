@@ -523,6 +523,83 @@ class CatalogLibrary extends ChangeNotifier {
     }
   }
 
+  /// Carry local preferences and verified identities across provider ID changes.
+  Future<void> migrateOrganizedFiles({
+    required String scope,
+    required List<CatalogTitle> previousTitles,
+    required Map<String, StorageEntrySnapshot> replacements,
+  }) async {
+    if (_disposed || scope != _catalogScope || replacements.isEmpty) return;
+    final after = groupCatalog([
+      for (final title in previousTitles)
+        for (final video in title.videos) replacements[video.id] ?? video.file,
+    ]);
+    for (final entry in replacements.entries) {
+      final oldId = entry.key, newId = entry.value.storageKey;
+      if (positions.containsKey(oldId)) {
+        positions[newId] = positions.remove(oldId)!;
+      }
+      if (durations.containsKey(oldId)) {
+        durations[newId] = durations.remove(oldId)!;
+      }
+      if (saved.remove(oldId)) saved.add(newId);
+      final cachePrefix = '$scope|$oldId|';
+      _thumbnails.removeWhere((key, _) => key.startsWith(cachePrefix));
+      _metadata.removeWhere((key, _) => key.startsWith(cachePrefix));
+    }
+    for (final previous in previousTitles) {
+      final ids = previous.videos
+          .map((v) => replacements[v.id]?.storageKey ?? v.id)
+          .toSet();
+      final changed = after.where(
+        (t) => t.videos.any((v) => ids.contains(v.id)),
+      );
+      final oldKey = matcher.key(scope, previous);
+      final oldMatch = matcher.matches[oldKey];
+      for (final title in changed) {
+        final newKey = matcher.key(scope, title);
+        if (oldMatch != null) {
+          final existing = matcher.matches[newKey];
+          if (existing == null) {
+            matcher.matches[newKey] = oldMatch;
+          } else if (existing.candidate.providerId ==
+                  oldMatch.candidate.providerId &&
+              existing.candidate.year == oldMatch.candidate.year) {
+            final episodes = {
+              for (final episode in oldMatch.episodes)
+                '${episode.season}:${episode.number}': episode,
+              for (final episode in existing.episodes)
+                '${episode.season}:${episode.number}': episode,
+            };
+            matcher.matches[newKey] = CatalogResolvedMatch(
+              existing.manual ? existing.candidate : oldMatch.candidate,
+              episodes.values.toList(),
+              manual: existing.manual || oldMatch.manual,
+            );
+          }
+        }
+        if (matcher.localOnly.contains(oldKey)) matcher.localOnly.add(newKey);
+        if (saved.contains(previous.id)) saved.add(title.id);
+        for (final kind in CatalogArtworkKind.values) {
+          final value = _artworkAliasKeys(
+            previous,
+            scope,
+            kind,
+          ).map((key) => _artworkChoices[key]).whereType<String>().firstOrNull;
+          if (value != null) {
+            for (final key in _artworkAliasKeys(title, scope, kind)) {
+              _artworkChoices[key] = value;
+            }
+          }
+        }
+      }
+    }
+    _matchingRevision++;
+    _groupingDirty = true;
+    _scheduleDiscovery();
+    await persist();
+  }
+
   void toggleSaved(String id) {
     final title = currentTitles.where((t) => t.id == id).firstOrNull;
     if (title != null && isSaved(title)) {
